@@ -71,6 +71,6 @@ test('an old roster retains its coordinates and result until the current layout 
   assert.equal(settled.round.result.winner, 'red');
   assert.equal(settled.balance, 9_974);
   const next = advance(settled, time.next);
-  assert.equal(next.round.board, 'square-14');
+  assert.equal(next.round.board, 'hex-14');
   assert.equal(next.previous.balanceAfter, settled.balance);
 });

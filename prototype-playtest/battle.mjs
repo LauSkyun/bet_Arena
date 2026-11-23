@@ -88,12 +88,12 @@ function makeRoutes(terrain, board) {
   };
 }
 
-function chooseTarget(unit, units, buildings, route) {
-  const candidates = [...units, ...buildings].filter((target) => target.side !== unit.side && distance(unit.at, target.at) <= battleRules.sense);
-  const reachable = (target) => route.some(({ at }) => distance(at, target.at) <= unit.range);
+function chooseTarget(unit, units, buildings, route, board) {
+  const candidates = [...units, ...buildings].filter((target) => target.side !== unit.side && distance(unit.at, target.at, board) <= battleRules.sense);
+  const reachable = (target) => route.some(({ at }) => distance(at, target.at, board) <= unit.range);
   const locked = candidates.find(({ id }) => id === unit.target);
   if (locked && reachable(locked)) return locked;
-  candidates.sort((a, b) => Number(Boolean(a.kind)) - Number(Boolean(b.kind)) || distance(unit.at, a.at) - distance(unit.at, b.at) || a.id - b.id);
+  candidates.sort((a, b) => Number(Boolean(a.kind)) - Number(Boolean(b.kind)) || distance(unit.at, a.at, board) - distance(unit.at, b.at, board) || a.id - b.id);
   return candidates.find(reachable);
 }
 
@@ -101,13 +101,13 @@ function march(unit, buildings, route, terrain, board) {
   const targets = buildings.filter(({ side }) => side === enemy(unit.side));
   const base = targets.find(({ kind }) => kind === 'base');
   const destinations = base ? [base] : targets;
-  const approach = route.find(({ at }) => destinations.some((building) => distance(at, building.at) <= unit.range));
+  const approach = route.find(({ at }) => destinations.some((building) => distance(at, building.at, board) <= unit.range));
   if (approach) return approach.first;
   const original = base?.at ?? mapFor(enemy(unit.side), board).base;
   let closest;
   for (const entry of route) {
     if (terrain[keyAt(entry.at)] !== 'ground') continue;
-    if (!closest || distance(entry.at, original) < distance(closest.at, original)) closest = entry;
+    if (!closest || distance(entry.at, original, board) < distance(closest.at, original, board)) closest = entry;
   }
   return closest?.first;
 }
@@ -126,17 +126,17 @@ export function applyOccupancy(owners, entries) {
   }
 }
 
-function resolveReversals(plans, elapsed) {
+function resolveReversals(plans, elapsed, board) {
   const pending = new Map(plans.map((plan) => [plan.unit.id, plan]));
   const turn = Math.floor(elapsed / battleRules.stepMs);
   const yieldingSide = turn % 2 === 0 ? 'red' : 'blue';
   for (const plan of plans) {
     const { unit, at } = plan;
-    if (unit.side !== yieldingSide || !at || !unit.lastAt || distance(at, unit.lastAt) !== 0) continue;
+    if (unit.side !== yieldingSide || !at || !unit.lastAt || distance(at, unit.lastAt, board) !== 0) continue;
     const rival = pending.get(unit.target);
-    if (!rival?.at || !rival.unit.lastAt || distance(rival.at, rival.unit.lastAt) !== 0) continue;
+    if (!rival?.at || !rival.unit.lastAt || distance(rival.at, rival.unit.lastAt, board) !== 0) continue;
     const engagementRange = Math.max(unit.range, rival.unit.range);
-    if (distance(at, rival.at) > engagementRange && distance(unit.at, rival.at) <= engagementRange) plan.at = null;
+    if (distance(at, rival.at, board) > engagementRange && distance(unit.at, rival.at, board) <= engagementRange) plan.at = null;
   }
 }
 
@@ -147,13 +147,13 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   else {
     const moves = state.units.map((unit) => {
       const route = routes(unit.at, unit.side);
-      const target = chooseTarget(unit, state.units, state.buildings, route);
+      const target = chooseTarget(unit, state.units, state.buildings, route, board);
       unit.target = target?.id ?? null;
-      const at = target ? route.find(({ at }) => distance(at, target.at) <= unit.range)?.first
+      const at = target ? route.find(({ at }) => distance(at, target.at, board) <= unit.range)?.first
         : march(unit, state.buildings, route, state.terrain, board);
       return { unit, at };
     });
-    if (combatRules === currentCombatRules) resolveReversals(moves, elapsed);
+    if (combatRules === currentCombatRules) resolveReversals(moves, elapsed, board);
     for (const { unit, at } of moves) {
       unit.lastAt = at ? unit.at : null;
       if (!at) continue;
@@ -164,9 +164,9 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
 
   const strikes = new Map();
   for (const unit of state.units) {
-    const target = chooseTarget(unit, state.units, state.buildings, routes(unit.at, unit.side));
+    const target = chooseTarget(unit, state.units, state.buildings, routes(unit.at, unit.side), board);
     unit.target = target?.id ?? null;
-    if (!target || elapsed < unit.nextAttack || distance(unit.at, target.at) > unit.range) continue;
+    if (!target || elapsed < unit.nextAttack || distance(unit.at, target.at, board) > unit.range) continue;
     const pending = strikes.get(target.id)?.damage ?? 0;
     strikes.set(target.id, { target, damage: pending + unit.damage });
     unit.nextAttack = elapsed + unit.attackMs;

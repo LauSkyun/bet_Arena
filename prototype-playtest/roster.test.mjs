@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
-import { barracksLimit, battleLoadout, currentBoard, expansionExits, boardColumns, boardRows, drawUnit, enhanceRoster, isRosterFull, keyAt, mapFor, newRoster, priorBoard, themes, unitStats, validBuilds } from './roster.mjs';
+import { barracksLimit, battleLoadout, currentBoard, distance, expansionExits, boardColumns, boardRows, drawUnit, enhanceRoster, isRosterFull, keyAt, mapFor, neighbours, newRoster, priorBoard, squareExpansionBoard, themes, unitStats, validBuilds } from './roster.mjs';
 
 const asKeys = (points) => points.map(keyAt).sort();
 const adjacent = ([a, b], [c, d]) => Math.abs(a - c) + Math.abs(b - d) === 1;
@@ -65,12 +65,12 @@ test('a seed persists the two random themes and allows matching themes', () => {
 
 test('first building uses a base edge and later buildings use discrete adjacent plots', () => {
   const roster = newRoster('red', 73);
-  assert.deepEqual(asKeys(validBuilds(roster).map(({ at }) => at)), ['1-3', '1-5', '2-4']);
+  assert.deepEqual(asKeys(validBuilds(roster).map(({ at }) => at)), ['1-3', '1-5', '2-4', '2-5']);
   const first = enhanceRoster(roster).roster;
   assert.equal(first.barracks.length, 1);
-  assert.ok(adjacent(mapFor('red').base, first.barracks[0].at));
+  assert.ok(distance(mapFor('red').base, first.barracks[0].at) === 1);
   for (const { at } of validBuilds(first)) {
-    assert.ok([mapFor('red').base, first.barracks[0].at].some((occupied) => adjacent(at, occupied)));
+    assert.ok([mapFor('red').base, first.barracks[0].at].some((occupied) => distance(at, occupied) === 1));
     assert.notDeepEqual(at, first.barracks[0].at);
   }
   assert.equal(new Set(asKeys(validBuilds(first).map(({ at }) => at))).size, validBuilds(first).length);
@@ -141,7 +141,7 @@ test('the requested expansion example offers four unique plots while preserving 
   const roster = newRoster('red', 0);
   const withBarracks = { ...roster, barracks: [{ at: [1, 5] }] };
   assert.deepEqual(asKeys(validBuilds(withBarracks).map(({ at }) => at)), ['1-3', '1-6', '2-4', '2-5']);
-  assert.equal(expansionExits('red', currentBoard, [[1, 5], [1, 6], [2, 5]]), null);
+  assert.equal(expansionExits('red', squareExpansionBoard, [[1, 5], [1, 6], [2, 5]]), null);
 });
 
 test('different seeds reach 15 barracks with distinct layouts and no sixteenth barracks', () => {
@@ -152,10 +152,26 @@ test('different seeds reach 15 barracks with distinct layouts and no sixteenth b
     assert.equal(roster.barracks.length, 15);
     assert.ok(roster.barracks.every(({ level }) => level === 3));
     const exits = expansionExits('red', currentBoard, roster.barracks.map(({ at }) => at));
-    assert.ok(roster.barracks.every(({ at, exit }) => adjacent(at, exit) && keyAt(exits.get(keyAt(at))) === keyAt(exit)));
+    assert.ok(roster.barracks.every(({ at, exit }) => distance(at, exit) === 1 && keyAt(exits.get(keyAt(at))) === keyAt(exit)));
     assert.deepEqual(validBuilds(roster), []);
     assert.equal(enhanceRoster(roster).roster, roster);
     layouts.add(asKeys(roster.barracks.map(({ at }) => at)).join('|'));
   }
   assert.ok(layouts.size > 1);
+});
+
+test('all six edges use true unit distance and preserve 180-degree symmetry', () => {
+  const opposite = ([row, col]) => [15 - row, 8 - col];
+  const red = mapFor('red');
+  const blue = mapFor('blue');
+  assert.deepEqual(blue.plots.map(({ at }) => at), red.plots.map(({ at }) => opposite(at)));
+  assert.deepEqual(blue.starts, red.starts.map(opposite));
+  for (const at of [[3, 4], [4, 4]]) {
+    const edges = neighbours(at, 'red');
+    assert.equal(new Set(asKeys(edges)).size, 6);
+    assert.ok(edges.every((next) => distance(at, next) === 1));
+    assert.deepEqual(neighbours(opposite(at), 'blue'), edges.map(opposite));
+  }
+  assert.equal(distance([3, 4], [4, 5]), 1);
+  assert.equal(distance([3, 4], [4, 5], squareExpansionBoard), 2);
 });

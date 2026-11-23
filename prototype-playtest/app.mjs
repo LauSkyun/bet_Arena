@@ -1,7 +1,7 @@
 import { returnsFor } from './returns.mjs';
 import { countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
-import { barracksLimit, boardColumns, boardRows, hasExpansion, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
+import { barracksLimit, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
 import { resetSession, updateSession } from './storage.mjs';
@@ -15,7 +15,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-expansion.v1';
+const pendingKey = 'bet-arena.prototype.pending-hex-preview.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -74,6 +74,8 @@ function renderBoard(layout, teams, frame, effects) {
   if (renderedLayout !== layout) {
     renderedLayout = layout;
     const rows = boardRows(layout);
+    const hex = isHex(layout);
+    board.classList.toggle('hex-board', hex);
     startingScores = countGround(openingGround(layout));
     cells.clear();
     const tiles = document.createDocumentFragment();
@@ -82,12 +84,16 @@ function renderBoard(layout, teams, frame, effects) {
         const cell = document.createElement('span');
         const key = keyAt([row, col]);
         cell.dataset.at = key;
+        if (hex) {
+          cell.style.gridColumn = `${2 * col - 1 + row % 2} / span 2`;
+          cell.style.gridRow = String(row);
+        }
         cell.setAttribute('role', 'img');
         cells.set(key, cell);
         tiles.append(cell);
       }
     }
-    board.setAttribute('aria-label', `${rows} 行 ${boardColumns} 列棋盘`);
+    board.setAttribute('aria-label', `${rows} 行 ${boardColumns} 列${hex ? '六边形' : ''}棋盘`);
     board.replaceChildren(tiles);
   }
   const changes = new Map(effects.filter(({ at }) => at).map((effect) => [keyAt(effect.at), effect.kind]));

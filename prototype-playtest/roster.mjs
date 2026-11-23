@@ -1,14 +1,30 @@
 export const themes = Object.freeze(['人族', '神族', '虫族']);
-export const currentBoard = 'square-14';
+export const currentBoard = 'hex-14';
+export const squareExpansionBoard = 'square-14';
 export const priorBoard = 'square-10';
 export const legacyBoard = 'square-11';
 export const boardRows = (board = currentBoard) => board === legacyBoard ? 11 : board === priorBoard ? 10 : 14;
 export const boardColumns = 7;
 
-export const hasExpansion = (board = currentBoard) => board === currentBoard;
+export const isHex = (board = currentBoard) => board === currentBoard;
+export const hasExpansion = (board = currentBoard) => isHex(board) || board === squareExpansionBoard;
 export const onBoard = ([row, col], board) => row >= 1 && row <= boardRows(board) && col >= 1 && col <= boardColumns;
-export const distance = ([row, col], [otherRow, otherCol]) => Math.abs(row - otherRow) + Math.abs(col - otherCol);
-export function neighbours([row, col], side) {
+const opposite = ([row, col], board) => [boardRows(board) + 1 - row, boardColumns + 1 - col];
+
+export function distance([row, col], [otherRow, otherCol], board) {
+  const dr = row - otherRow;
+  const dc = col - otherCol;
+  if (!isHex(board)) return Math.abs(dr) + Math.abs(dc);
+  const dq = dc - Math.floor(row / 2) + Math.floor(otherRow / 2);
+  return Math.max(Math.abs(dr), Math.abs(dq), Math.abs(dr + dq));
+}
+
+export function neighbours([row, col], side, board) {
+  if (isHex(board)) {
+    if (side === 'blue') return neighbours(opposite([row, col], board), 'red', board).map((at) => opposite(at, board));
+    const diagonal = col + (row % 2 ? 1 : -1);
+    return [[row, col - 1], [row, col + 1], [row - 1, col], [row + 1, col], [row - 1, diagonal], [row + 1, diagonal]];
+  }
   const vertical = side === 'blue' ? 1 : -1;
   return [[row, col - 1], [row, col + 1], [row + vertical, col], [row - vertical, col]];
 }
@@ -32,6 +48,10 @@ const expansionPlots = [
   [3, 4], [3, 5], [4, 4], [4, 5],
   [5, 2], [5, 3], [5, 4], [5, 5], [5, 6],
 ];
+const hexPlots = [
+  [1, 3], [1, 5], [1, 6], [1, 7], [2, 3], [2, 4], [2, 5], [3, 4], [3, 5],
+  [4, 3], [4, 4], [4, 5], [4, 6], [5, 3], [5, 4], [6, 3], [6, 5], [6, 6], [7, 5], [7, 6],
+];
 export const barracksLimit = 15;
 const names = {
   人族: ['巡地兵', '护阵步兵', '长弩手'],
@@ -48,10 +68,13 @@ export const maxLevel = 3;
 export const keyAt = ([row, col]) => `${row}-${col}`;
 
 export function mapFor(side, board = currentBoard) {
-  const toSide = ([row, col]) => [side === 'blue' ? boardRows(board) + 1 - row : row, col];
+  const toSide = ([row, col]) => {
+    if (side === 'red') return [row, col];
+    return isHex(board) ? opposite([row, col], board) : [boardRows(board) + 1 - row, col];
+  };
   return {
     base: toSide(redMap.base),
-    plots: hasExpansion(board) ? expansionPlots.map((at) => ({ at: toSide(at) }))
+    plots: hasExpansion(board) ? (isHex(board) ? hexPlots : expansionPlots).map((at) => ({ at: toSide(at) }))
       : redMap.plots.map(({ at, exit }) => ({ at: toSide(at), exit: toSide(exit) })),
     starts: redMap.starts.map(toSide),
   };
