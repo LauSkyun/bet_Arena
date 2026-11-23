@@ -13,6 +13,16 @@
       <div><h1>竞猜竞技场</h1><span class="subheading">单人试玩 · 测试积分</span></div>
       <button id="reset" class="secondary">新建试玩</button>
     </header>
+    <details class="timing-settings" id="battle-data-tools">
+      <summary>战局数据</summary>
+      <div class="battle-data-actions">
+        <button type="button" id="copy-battle-data" class="secondary" disabled>复制当局数据</button>
+        <button type="button" id="save-battle-data" class="secondary" disabled>下载当局 JSON</button>
+        <button type="button" id="copy-previous-data" class="secondary" hidden>复制上局数据</button>
+        <button type="button" id="save-previous-data" class="secondary" hidden>下载上局 JSON</button>
+      </div>
+      <p id="battle-data-feedback" class="notice" role="status"></p>
+    </details>
     <details id="timing-settings" class="timing-settings">
       <summary>下一轮时长设置</summary>
       <p id="timing-current"></p>
@@ -78,6 +88,7 @@
       <section id="result" class="result" aria-label="本轮结果" hidden>
         <strong id="result-winner"></strong>
         <span id="result-score"></span>
+        <span id="result-reason" hidden></span>
         <span id="result-ticket"></span>
         <span id="result-rate"></span>
         <span id="result-net"></span>

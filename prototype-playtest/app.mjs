@@ -1,3 +1,4 @@
+import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
@@ -15,13 +16,18 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-playtest.v1';
+const pendingKey = 'bet-arena.prototype.pending-battle-feedback.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
 const sideInputs = [...form.querySelectorAll('input[name="side"]')];
 const stages = [...document.querySelectorAll('[data-phase]')];
 const timingForm = element('timing-form');
+const copyBattleData = element('copy-battle-data');
+const saveBattleData = element('save-battle-data');
+const copyPreviousData = element('copy-previous-data');
+const savePreviousData = element('save-previous-data');
+const battleDataFeedback = element('battle-data-feedback');
 const betSeconds = element('bet-seconds');
 const battleSeconds = element('battle-seconds');
 const timingSave = element('timing-save');
@@ -191,7 +197,11 @@ function render(session, now) {
     for (const input of sideInputs) input.checked = false;
     amountInput.value = '100';
   }
-  displayed = { session, phase: stage.phase };
+  displayed = { session, phase: stage.phase, now };
+  copyBattleData.disabled = false;
+  saveBattleData.disabled = false;
+  copyPreviousData.hidden = !previous?.battleData;
+  savePreviousData.hidden = copyPreviousData.hidden;
   renderTiming(session);
   element('round').textContent = String(round.number);
   element('balance').textContent = String(session.balance);
@@ -230,6 +240,10 @@ function render(session, now) {
     const { winner, scores, stakes, rates: settledRates, stake, credit, net, balanceAfter } = round.result;
     element('result-winner').textContent = resultLabel(winner);
     element('result-score').textContent = scores ? `最终占格 · ${scoreLabel(scores)}` : '本轮无最终格数';
+    const damage = round.result.damage;
+    const reason = element('result-reason');
+    reason.hidden = !damage || scores?.red !== scores?.blue;
+    if (!reason.hidden) reason.textContent = `占格相同，比较有效伤害 · 红 ${damage.red}／蓝 ${damage.blue}`;
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;
@@ -301,6 +315,40 @@ form.addEventListener('submit', async (event) => {
     void refresh();
   }
 });
+
+function exportBattleData(previous, download) {
+  const shown = displayed;
+  if (!shown) return;
+  const { session, phase, now } = shown;
+  const data = previous ? session.previous?.battleData : battleDataFor(session.round, session.reference);
+  if (!data) return;
+  const elapsedMs = previous ? null : Math.max(0, now - session.round.startedAt);
+  const payload = JSON.stringify(battleDataReport(data, previous ? 'result' : phase, elapsedMs));
+  if (download) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
+    link.href = url;
+    link.download = `battle-data-round-${data.number}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    battleDataFeedback.textContent = `已请求下载第 ${data.number} 局数据。`;
+    return;
+  }
+  if (!navigator.clipboard?.writeText) {
+    battleDataFeedback.textContent = '复制不可用，可以下载对应的 JSON。';
+    return;
+  }
+  return navigator.clipboard.writeText(payload).then(() => {
+    battleDataFeedback.textContent = `已复制第 ${data.number} 局数据。`;
+  }, () => {
+    battleDataFeedback.textContent = '复制未成功，可以下载对应的 JSON。';
+  });
+}
+
+copyBattleData.addEventListener('click', () => void exportBattleData(false, false));
+saveBattleData.addEventListener('click', () => void exportBattleData(false, true));
+copyPreviousData.addEventListener('click', () => void exportBattleData(true, false));
+savePreviousData.addEventListener('click', () => void exportBattleData(true, true));
 
 timingForm.addEventListener('input', () => { timingDraft = true; });
 timingForm.addEventListener('submit', async (event) => {

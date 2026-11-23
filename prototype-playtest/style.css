@@ -106,3 +106,4 @@ main { width: min(100% - 1.25rem, 60rem); }
 .hex-board .cell.soldier { text-shadow: 0 1px 2px #000; }
 .hex-board .cell.reinforced { filter: brightness(1.5); }
 .hex-board .cell:last-child { margin-bottom: 0; }
+.battle-data-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }

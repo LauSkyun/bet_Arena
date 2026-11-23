@@ -2,7 +2,9 @@ import { barracksLimit, boardColumns, boardRows, currentBoard, distance, expansi
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
-export const currentCombatRules = 2;
+export const reversalCombatRules = 2;
+export const damageTiebreakRules = 3;
+export const currentCombatRules = damageTiebreakRules;
 const sides = ['red', 'blue'];
 const enemy = (side) => side === 'red' ? 'blue' : 'red';
 const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = false) =>
@@ -153,7 +155,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
         : march(unit, state.buildings, route, state.terrain, board);
       return { unit, at };
     });
-    if (combatRules === currentCombatRules) resolveReversals(moves, elapsed, board);
+    if (combatRules >= reversalCombatRules) resolveReversals(moves, elapsed, board);
     for (const { unit, at } of moves) {
       unit.lastAt = at ? unit.at : null;
       if (!at) continue;
@@ -171,7 +173,10 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     strikes.set(target.id, { target, damage: pending + unit.damage });
     unit.nextAttack = elapsed + unit.attackMs;
   }
-  for (const { target, damage } of strikes.values()) target.hp -= damage;
+  for (const { target, damage } of strikes.values()) {
+    if (state.damage) state.damage[enemy(target.side)] += Math.min(target.hp, damage);
+    target.hp -= damage;
+  }
   for (const building of state.buildings) {
     if (building.hp <= 0) state.terrain[keyAt(building.at)] = 'ruins';
   }
@@ -218,14 +223,22 @@ export function simulateBattle(loadout, durationMs, board = currentBoard, combat
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const state = makeState(loadout, board);
+    if (combatRules >= damageTiebreakRules) state.damage = { red: 0, blue: 0 };
     const frames = [];
     for (let elapsed = 0; elapsed <= durationMs; elapsed += battleRules.stepMs) {
       advanceBattle(state, elapsed, board, combatRules);
       frames.push(frame(state, elapsed));
     }
     const scores = frames.at(-1).scores;
-    const winner = scores.red === scores.blue ? 'draw' : scores.red > scores.blue ? 'red' : 'blue';
-    return { frames, result: { winner, scores, durationMs } };
+    const terrainLead = scores.red - scores.blue;
+    const damage = state.damage;
+    const damageLead = damage ? damage.red - damage.blue : 0;
+    const lead = terrainLead || damageLead;
+    const winner = lead === 0 ? 'draw' : lead > 0 ? 'red' : 'blue';
+    const decidedBy = terrainLead !== 0 ? 'territory' : damageLead !== 0 ? 'damage' : 'draw';
+    const result = { winner, scores, durationMs };
+    if (damage) Object.assign(result, { damage, decidedBy });
+    return { frames, result };
   } catch {
     return { frames: [], result: { winner: 'void', scores: null, durationMs } };
   }

@@ -1,3 +1,4 @@
+import { battleDataFor } from './battle-data.mjs';
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
@@ -58,13 +59,14 @@ export function advance(session, now) {
   const skipped = Math.floor((now - time.next) / span);
   const current = newRound(round.number + 1 + skipped, time.next + skipped * span, session.seed, nextDurations);
   const lastSkipped = skipped > 0 ? newRound(current.number - 1, current.startedAt - span, session.seed, nextDurations) : null;
-  let previous = round.result;
+  let lastFinished = round;
   if (lastSkipped) {
     const previousTime = timeline(lastSkipped);
     const previousRound = advanceBetting(lastSkipped, session.reference, previousTime.lock, previousTime.finish);
     const { result } = replayFor(previousRound.snapshot.battle, previousRound.durations.battleMs, previousRound.board, previousRound.combatRules);
-    previous = settleSession({ ...session, round: previousRound }, result, previousTime.finish, now).round.result;
+    lastFinished = settleSession({ ...session, round: previousRound }, result, previousTime.finish, now).round;
   }
+  const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };
   const next = { ...session, round: current, previous };
   return advance(next, now);
 }
