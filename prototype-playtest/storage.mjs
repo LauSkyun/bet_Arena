@@ -4,7 +4,7 @@ import { defaultDurations, legacyDurations } from './timing.mjs';
 import { stakesFor } from './betting.mjs';
 import { advance, newSession, sessionVersion } from './round.mjs';
 
-const sessionKey = 'bet-arena.prototype.base-win.v1';
+const sessionKey = 'bet-arena.prototype.playtest.v1';
 
 function legacyRates(red, blue) {
   return { red: red > 0 ? 200 : null, blue: blue > 0 ? 200 : null };
