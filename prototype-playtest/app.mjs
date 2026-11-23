@@ -16,7 +16,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-battle-feedback.v1';
+const pendingKey = 'bet-arena.prototype.pending-playtest.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');

@@ -5,12 +5,14 @@ import { settleSession } from './settlement.mjs';
 import { currentCombatRules, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
+export const sessionVersion = 7;
+
 const lockMs = 2_000;
 const resultMs = 5_000;
 const roundSpan = ({ betMs, battleMs }) => betMs + lockMs + battleMs + resultMs;
 
 export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard) {
-  return { version: 6, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
+  return { version: sessionVersion, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
     round: newRound(1, now, seed, durations, board), previous: null };
 }
 

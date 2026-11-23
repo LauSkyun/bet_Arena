@@ -2,9 +2,9 @@ import { previousCombatRules } from './battle.mjs';
 import { legacyBoard } from './roster.mjs';
 import { defaultDurations, legacyDurations } from './timing.mjs';
 import { stakesFor } from './betting.mjs';
-import { advance, newSession } from './round.mjs';
+import { advance, newSession, sessionVersion } from './round.mjs';
 
-const sessionKey = 'bet-arena.prototype.battle-feedback.v1';
+const sessionKey = 'bet-arena.prototype.playtest.v1';
 
 function legacyRates(red, blue) {
   return { red: red > 0 ? 200 : null, blue: blue > 0 ? 200 : null };
@@ -18,10 +18,12 @@ function migrateResult(result, rates) {
 }
 
 export function upgradeSession(saved) {
-  if (!saved || saved.version === 6) return saved;
-  if (saved.version === 5) return { ...saved, version: 6, round: { ...saved.round, combatRules: previousCombatRules } };
-  if (saved.version === 4) return { ...saved, version: 6, round: { ...saved.round, board: legacyBoard, combatRules: previousCombatRules } };
-  if (saved.version === 3) return { ...saved, version: 6, nextDurations: defaultDurations,
+  if (!saved || saved.version === sessionVersion) return saved;
+  // Older tabs reject this version before they can settle a round with newer rules.
+  if (saved.version === 6) return { ...saved, version: sessionVersion };
+  if (saved.version === 5) return { ...saved, version: sessionVersion, round: { ...saved.round, combatRules: previousCombatRules } };
+  if (saved.version === 4) return { ...saved, version: sessionVersion, round: { ...saved.round, board: legacyBoard, combatRules: previousCombatRules } };
+  if (saved.version === 3) return { ...saved, version: sessionVersion, nextDurations: defaultDurations,
     round: { ...saved.round, board: legacyBoard, combatRules: previousCombatRules, durations: legacyDurations } };
   if (saved.version !== 1 && saved.version !== 2) throw Error('试玩记录版本不受支持');
   const { support: _support, stake: _stake, snapshot, result, ...round } = saved.round;
@@ -32,7 +34,7 @@ export function upgradeSession(saved) {
     // A round sealed under the fixed multiplier keeps that multiplier through recovery.
     sealed = { ...fields, stakes: fields.stakes ?? stakesFor(snapshot.teams), rates: legacyRates(red.total, blue.total) };
   }
-  return { ...saved, version: 6, nextDurations: defaultDurations, previous: migrateResult(saved.previous),
+  return { ...saved, version: sessionVersion, nextDurations: defaultDurations, previous: migrateResult(saved.previous),
     round: { ...round, board: legacyBoard, combatRules: previousCombatRules, durations: legacyDurations, snapshot: sealed, result: migrateResult(result, sealed?.rates) } };
 }
 

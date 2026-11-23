@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { reversalCombatRules, simulateBattle } from './battle.mjs';
-import { advance, newSession, placeBet, timeline } from './round.mjs';
+import { advance, newSession, placeBet, sessionVersion, timeline } from './round.mjs';
+import { upgradeSession } from './storage.mjs';
 
 const equalStakes = () => {
   let session = newSession('private-session-id', 1234, undefined, 0);
@@ -24,10 +25,14 @@ test('a territory tie uses effective damage to settle new rounds and preserves o
   assert.equal(settled.round.result.winner, 'blue');
   assert.equal(settled.round.result.credit, 165);
   assert.equal(settled.balance, 9965);
-  const old = { ...session, round: { ...session.round, combatRules: reversalCombatRules } };
-  const restored = advance(JSON.parse(JSON.stringify(old)), time.finish);
+  const old = { ...session, version: 6, round: { ...session.round, combatRules: reversalCombatRules } };
+  const migrated = upgradeSession(JSON.parse(JSON.stringify(old)));
+  assert.equal(migrated.version, sessionVersion);
+  assert.equal(migrated.round.combatRules, reversalCombatRules);
+  const restored = advance(migrated, time.finish);
   assert.equal(restored.round.result.winner, 'draw');
   assert.equal(restored.balance, 10000);
+  assert.equal(advance(restored, time.next).round.combatRules, session.round.combatRules);
 });
 
 test('current and previous exports preserve the exact inputs without private identifiers', () => {
