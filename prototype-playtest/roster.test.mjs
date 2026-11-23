@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
-import { battleLoadout, boardColumns, boardRows, drawUnit, enhanceRoster, isRosterFull, keyAt, mapFor, newRoster, themes, unitStats, validBuilds } from './roster.mjs';
+import { barracksLimit, battleLoadout, currentBoard, expansionExits, boardColumns, boardRows, drawUnit, enhanceRoster, isRosterFull, keyAt, mapFor, newRoster, priorBoard, themes, unitStats, validBuilds } from './roster.mjs';
 
 const asKeys = (points) => points.map(keyAt).sort();
 const adjacent = ([a, b], [c, d]) => Math.abs(a - c) + Math.abs(b - d) === 1;
+const maxUpgradeSteps = 3;
 
 test('map geometry mirrors the two bases, connected expansion plots and walkable exits', () => {
-  const red = mapFor('red');
-  const blue = mapFor('blue');
+  const red = mapFor('red', priorBoard);
+  const blue = mapFor('blue', priorBoard);
   const mirror = ([row, col]) => [11 - row, col];
-  assert.equal(boardRows(), 10);
+  assert.equal(boardRows(priorBoard), 10);
   assert.equal(boardColumns, 7);
   assert.deepEqual(red.base, [1, 4]);
   assert.deepEqual(blue.base, [10, 4]);
@@ -18,7 +19,7 @@ test('map geometry mirrors the two bases, connected expansion plots and walkable
   assert.deepEqual(blue.starts, red.starts.map(mirror));
   const reserved = new Set(asKeys([red, blue].flatMap(({ base, plots }) => [base, ...plots.map(({ at }) => at)])));
   const walkable = [];
-  for (let row = 1; row <= boardRows(); row++) {
+  for (let row = 1; row <= boardRows(priorBoard); row++) {
     for (let col = 1; col <= boardColumns; col++) {
       if (!reserved.has(keyAt([row, col]))) walkable.push([row, col]);
     }
@@ -77,18 +78,18 @@ test('first building uses a base edge and later buildings use discrete adjacent 
 
 test('when all plots are built only upgrades apply, then all confirmed effects stop changing the roster', () => {
   const unit = drawUnit('人族', 0, 0);
-  const barracks = mapFor('red').plots.map(({ at, exit }) => ({ side: 'red', at, exit, unit, level: 1 }));
+  const barracks = mapFor('red', priorBoard).plots.map(({ at, exit }) => ({ side: 'red', at, exit, unit, level: 1 }));
   let roster = { ...newRoster('red', 13), barracks };
-  assert.deepEqual(validBuilds(roster), []);
+  assert.deepEqual(validBuilds(roster, priorBoard), []);
   for (let index = 0; index < 12; index++) {
-    const next = enhanceRoster(roster).roster;
+    const next = enhanceRoster(roster, priorBoard).roster;
     assert.equal(next.barracks.length, 6);
     assert.equal(next.barracks.reduce((sum, entry) => sum + entry.level, 0), 7 + index);
     assert.ok(next.barracks.every((entry) => entry.unit === unit));
     roster = next;
   }
-  assert.ok(isRosterFull(roster));
-  assert.equal(enhanceRoster(roster).roster, roster);
+  assert.ok(isRosterFull(roster, priorBoard));
+  assert.equal(enhanceRoster(roster, priorBoard).roster, roster);
   assert.deepEqual([1, 2, 3].map((level) => {
     const current = unitStats({ unit, level });
     return [current.hp, current.damage, current.limit];
@@ -118,20 +119,43 @@ test('cross-theme barracks belong to their original side and get route and comba
 });
 
 test('all plots and levels can be filled through threshold processing before a valid player bet', () => {
-  const reference = [{ elapsed: 100, side: 'red', amount: 180 }];
+  const reference = [{ elapsed: 100, side: 'red', amount: 450 }];
   const session = newSession('full-fixture', 0, reference, 73);
   const full = advance(session, 100);
   const { roster } = full.round.teams.red;
-  assert.equal(roster.barracks.length, 6);
+  assert.equal(roster.barracks.length, 15);
   assert.ok(isRosterFull(roster));
   const { session: charged, receipt } = placeBet(full, 101, {
     sessionId: full.id, roundNumber: 1, requestId: 'after-full', side: 'red', amount: 10,
   });
   assert.equal(charged.balance, 9990);
-  assert.equal(charged.round.teams.red.total, 190);
+  assert.equal(charged.round.teams.red.total, 460);
   assert.equal(charged.round.teams.red.roster, roster);
   assert.match(receipt.effects[0].label, /未新增战力/);
   const sealed = advance(charged, timeline(charged.round).lock).round.snapshot;
   assert.deepEqual(sealed.stakes, { red: 10, blue: 0 });
   assert.ok(sealed.battle.red.barracks.every(({ level }) => level === 3));
+});
+
+test('the requested expansion example offers four unique plots while preserving walking routes', () => {
+  const roster = newRoster('red', 0);
+  const withBarracks = { ...roster, barracks: [{ at: [1, 5] }] };
+  assert.deepEqual(asKeys(validBuilds(withBarracks).map(({ at }) => at)), ['1-3', '1-6', '2-4', '2-5']);
+  assert.equal(expansionExits('red', currentBoard, [[1, 5], [1, 6], [2, 5]]), null);
+});
+
+test('different seeds reach 15 barracks with distinct layouts and no sixteenth barracks', () => {
+  const layouts = new Set();
+  for (let seed = 0; seed < 32; seed++) {
+    let roster = newRoster('red', seed);
+    for (let i = 0; i < barracksLimit * maxUpgradeSteps; i++) roster = enhanceRoster(roster).roster;
+    assert.equal(roster.barracks.length, 15);
+    assert.ok(roster.barracks.every(({ level }) => level === 3));
+    const exits = expansionExits('red', currentBoard, roster.barracks.map(({ at }) => at));
+    assert.ok(roster.barracks.every(({ at, exit }) => adjacent(at, exit) && keyAt(exits.get(keyAt(at))) === keyAt(exit)));
+    assert.deepEqual(validBuilds(roster), []);
+    assert.equal(enhanceRoster(roster).roster, roster);
+    layouts.add(asKeys(roster.barracks.map(({ at }) => at)).join('|'));
+  }
+  assert.ok(layouts.size > 1);
 });

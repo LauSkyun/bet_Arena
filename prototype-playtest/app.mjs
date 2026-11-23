@@ -1,7 +1,7 @@
 import { returnsFor } from './returns.mjs';
 import { countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
-import { boardColumns, boardRows, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
+import { barracksLimit, boardColumns, boardRows, hasExpansion, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
 import { resetSession, updateSession } from './storage.mjs';
@@ -15,7 +15,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-flicker-fix.v1';
+const pendingKey = 'bet-arena.prototype.pending-expansion.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -57,7 +57,8 @@ function renderTeam(side, team, phase, percent, layout) {
   element(`${side}-total`).textContent = String(team.total);
   element(`${side}-system`).textContent = `系统投入 ${team.system} 点`;
   const barracks = team.roster.barracks.map(({ unit, level, at }) => `${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
-  element(`${side}-layout`).textContent = barracks.join('、') || '尚无兵营';
+  element(`${side}-layout`).textContent = hasExpansion(layout) ? `兵营 ${barracks.length}／${barracksLimit}${barracks.length ? ` · ${barracks.join('、')}` : ''}`
+    : barracks.join('、') || '尚无兵营';
   const left = betting.threshold - team.total % betting.threshold;
   const threshold = element(`${side}-threshold`);
   threshold.hidden = phase !== 'bet';
@@ -97,10 +98,15 @@ function renderBoard(layout, teams, frame, effects) {
     markers.set(keyAt(map.base), { kind: 'base', symbol: '基', label: `${teamName[side]}主基地` });
     for (const { at, exit } of map.plots) {
       markers.set(keyAt(at), { kind: 'plot', symbol: '', label: `${teamName[side]}可建格` });
-      markers.set(keyAt(exit), { kind: 'exit', symbol: '·', label: `${teamName[side]}出兵口` });
+      if (exit) markers.set(keyAt(exit), { kind: 'exit', symbol: '·', label: `${teamName[side]}出兵口` });
     }
     for (const barracks of roster.barracks) {
-      const { at, level } = barracks;
+      const { at, exit, level } = barracks;
+      if (hasExpansion(layout)) {
+        const exitKey = keyAt(exit);
+        const reserved = markers.get(exitKey)?.kind === 'plot';
+        markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
+      }
       const { name, tier, hp, damage, limit } = unitStats(barracks);
       const label = `${teamName[side]}${name}兵营，${level}级，生命${hp}，单次伤害${damage}，存活上限${limit}`;
       markers.set(keyAt(at), { kind: 'barracks', symbol: `${tier[0]}${level}`, label });

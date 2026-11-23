@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advanceBattle, applyOccupancy, frameAt, replayFor, simulateBattle } from './battle.mjs';
-import { battleLoadout, drawUnit, keyAt, mapFor, newRoster } from './roster.mjs';
+import { battleLoadout, drawUnit, keyAt, mapFor, newRoster, priorBoard } from './roster.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
@@ -67,11 +67,11 @@ test('a blocked exit retries and an occupied accessible exit allows another unit
   const building = { id: 1, kind: 'barracks', side: 'red', at: [1, 3], exit: [1, 2], hp: 120, nextSpawn: 500, unit: drawUnit('人族', 0, 0) };
   const state = tinyState({ '1-2': 'red' }, [building], []);
   state.terrain['1-2'] = 'plot';
-  advanceBattle(state, 500);
+  advanceBattle(state, 500, priorBoard);
   assert.equal(state.units.length, 0);
   state.terrain['1-2'] = 'ground';
   state.units.push(walking(2, 'red', [1, 2]));
-  advanceBattle(state, 1000);
+  advanceBattle(state, 1000, priorBoard);
   assert.equal(state.units.length, 2);
   assert.deepEqual(state.units.map(({ at }) => at), [[1, 2], [1, 2]]);
 });
@@ -96,9 +96,9 @@ test('the game continues after the main base falls and favors the side with more
   const loadout = toLoadout();
   loadout.red.startingUnits = loadout.red.startingUnits.map((unit) => ({ ...unit, damage: 300, hp: 1000, range: 3 }));
   const battle = simulateBattle(loadout, 25_000);
-  const destroyed = battle.frames.find((frame) => frame.terrain['10-4'] === 'ruins');
+  const destroyed = battle.frames.find((frame) => frame.terrain['14-4'] === 'ruins');
   assert.ok(destroyed && destroyed.elapsed < 25_000);
-  assert.equal(Object.hasOwn(destroyed.owners, '10-4'), false);
+  assert.equal(Object.hasOwn(destroyed.owners, '14-4'), false);
   assert.ok(battle.frames.every(({ scores }) => scores.red + scores.blue === 56));
   assert.equal(battle.frames.at(-1).elapsed, 25_000);
   assert.ok(battle.result.scores.red > battle.result.scores.blue);
@@ -119,7 +119,7 @@ test('an invalid battle returns a void result and settlement refunds the stake',
 });
 
 test('a real sealed round transfers each captured scoring tile and settles the same final battle', () => {
-  const session = newSession('capture', 0, undefined, 2);
+  const session = newSession('capture', 0, undefined, 2, undefined, priorBoard);
   const red = placeBet(session, 1_000, { sessionId: session.id, roundNumber: 1, side: 'red', amount: 340, requestId: 'red' }).session;
   const both = placeBet(red, 2_000, { sessionId: session.id, roundNumber: 1, side: 'blue', amount: 60, requestId: 'blue' }).session;
   const time = timeline(both.round);
@@ -140,7 +140,7 @@ test('a real sealed round transfers each captured scoring tile and settles the s
 });
 
 test('the recorded diagonal pursuit gets into range while older rounds retain their replay', () => {
-  const start = newSession('recorded-reversal', 0, undefined, 0);
+  const start = newSession('recorded-reversal', 0, undefined, 0, undefined, priorBoard);
   const times = timeline(start.round);
   const { round } = advance(start, times.lock);
   assert.deepEqual(round.snapshot.battle.red.barracks.map(({ at, unit }) => [at, unit.tier]), [[[1, 5], '中型']]);

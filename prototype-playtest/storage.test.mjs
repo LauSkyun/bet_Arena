@@ -54,7 +54,7 @@ test('v2 sealed round honors its former multiplier while an open round locks the
   assert.equal(advance(migratedOpen, time.finish).balance, 10018);
 });
 
-test('an old roster retains its coordinates and result until the 10-row layout begins next round', () => {
+test('an old roster retains its coordinates and result until the current layout begins next round', () => {
   const start = newSession('legacy-board', 0, undefined, 0);
   const old = { ...start, version: 4 };
   delete old.round.board;
@@ -71,6 +71,6 @@ test('an old roster retains its coordinates and result until the 10-row layout b
   assert.equal(settled.round.result.winner, 'red');
   assert.equal(settled.balance, 9_974);
   const next = advance(settled, time.next);
-  assert.equal(next.round.board, 'square-10');
+  assert.equal(next.round.board, 'square-14');
   assert.equal(next.previous.balanceAfter, settled.balance);
 });

@@ -8,9 +8,9 @@ const lockMs = 2_000;
 const resultMs = 5_000;
 const roundSpan = ({ betMs, battleMs }) => betMs + lockMs + battleMs + resultMs;
 
-export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations) {
+export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard) {
   return { version: 6, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
-    round: newRound(1, now, seed, durations), previous: null };
+    round: newRound(1, now, seed, durations, board), previous: null };
 }
 
 function seedFor(seed, number, side) {
@@ -20,10 +20,10 @@ function seedFor(seed, number, side) {
   return (value ^ (value >>> 15)) >>> 0;
 }
 
-function newRound(number, startedAt, seed, durations) {
+function newRound(number, startedAt, seed, durations, board = currentBoard) {
   return {
     number,
-    board: currentBoard,
+    board,
     combatRules: currentCombatRules,
     startedAt,
     durations,

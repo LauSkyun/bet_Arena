@@ -1,12 +1,21 @@
 export const themes = Object.freeze(['人族', '神族', '虫族']);
-export const currentBoard = 'square-10';
+export const currentBoard = 'square-14';
+export const priorBoard = 'square-10';
 export const legacyBoard = 'square-11';
-export const boardRows = (board) => board === legacyBoard ? 11 : 10;
+export const boardRows = (board = currentBoard) => board === legacyBoard ? 11 : board === priorBoard ? 10 : 14;
 export const boardColumns = 7;
+
+export const hasExpansion = (board = currentBoard) => board === currentBoard;
+export const onBoard = ([row, col], board) => row >= 1 && row <= boardRows(board) && col >= 1 && col <= boardColumns;
+export const distance = ([row, col], [otherRow, otherCol]) => Math.abs(row - otherRow) + Math.abs(col - otherCol);
+export function neighbours([row, col], side) {
+  const vertical = side === 'blue' ? 1 : -1;
+  return [[row, col - 1], [row, col + 1], [row + vertical, col], [row - vertical, col]];
+}
 
 export function openingOwner(row, board) {
   if (board === legacyBoard) return row <= 3 ? 'red' : row >= 9 ? 'blue' : null;
-  return row <= 5 ? 'red' : 'blue';
+  return row <= boardRows(board) / 2 ? 'red' : 'blue';
 }
 const redMap = {
   base: [1, 4],
@@ -17,6 +26,13 @@ const redMap = {
   ],
   starts: [[3, 2], [3, 3], [3, 6]],
 };
+const expansionPlots = [
+  [1, 1], [1, 2], [1, 3], [1, 5], [1, 6], [1, 7],
+  [2, 2], [2, 4], [2, 5], [2, 6], [2, 7],
+  [3, 4], [3, 5], [4, 4], [4, 5],
+  [5, 2], [5, 3], [5, 4], [5, 5], [5, 6],
+];
+export const barracksLimit = 15;
 const names = {
   人族: ['巡地兵', '护阵步兵', '长弩手'],
   神族: ['闪步卫', '石环卫', '棱光射手'],
@@ -35,7 +51,8 @@ export function mapFor(side, board = currentBoard) {
   const toSide = ([row, col]) => [side === 'blue' ? boardRows(board) + 1 - row : row, col];
   return {
     base: toSide(redMap.base),
-    plots: redMap.plots.map(({ at, exit }) => ({ at: toSide(at), exit: toSide(exit) })),
+    plots: hasExpansion(board) ? expansionPlots.map((at) => ({ at: toSide(at) }))
+      : redMap.plots.map(({ at, exit }) => ({ at: toSide(at), exit: toSide(exit) })),
     starts: redMap.starts.map(toSide),
   };
 }
@@ -50,14 +67,43 @@ export function newRoster(side, seed) {
   return { side, seed: nextSeed, theme: themes[Math.floor(value * themes.length)], barracks: [] };
 }
 
+export function expansionExits(side, board, barracks) {
+  const { base, starts } = mapFor(side, board);
+  const occupied = new Set([base, ...barracks].map(keyAt));
+  const walkable = (at) => onBoard(at, board) && openingOwner(at[0], board) === side && !occupied.has(keyAt(at));
+  const queue = [starts[0]];
+  const reachable = new Set(queue.map(keyAt));
+  for (const at of queue) {
+    for (const next of neighbours(at, side, board)) {
+      const key = keyAt(next);
+      if (!walkable(next) || reachable.has(key)) continue;
+      reachable.add(key);
+      queue.push(next);
+    }
+  }
+  if (reachable.size !== (boardRows(board) / 2) * boardColumns - occupied.size) return null;
+  const exits = new Map();
+  for (const at of barracks) {
+    const exit = neighbours(at, side, board).find((next) => reachable.has(keyAt(next)));
+    if (!exit) return null;
+    exits.set(keyAt(at), exit);
+  }
+  return exits;
+}
+
 export function validBuilds(roster, board) {
   const map = mapFor(roster.side, board);
   const builtAt = roster.barracks.map(({ at }) => at);
   const occupied = new Set(builtAt.map(keyAt));
   const anchors = [map.base, ...builtAt];
-  return map.plots.filter(({ at }) => !occupied.has(keyAt(at)) && anchors.some(
-    ([row, col]) => Math.abs(at[0] - row) + Math.abs(at[1] - col) === 1,
-  ));
+  const adjacent = new Set(anchors.flatMap((at) => neighbours(at, roster.side, board)).map(keyAt));
+  const candidates = map.plots.filter(({ at }) => !occupied.has(keyAt(at)) && adjacent.has(keyAt(at)));
+  if (!hasExpansion(board)) return candidates;
+  if (builtAt.length >= barracksLimit) return [];
+  return candidates.flatMap(({ at }) => {
+    const exits = expansionExits(roster.side, board, [...builtAt, at]);
+    return exits ? [{ at, exit: exits.get(keyAt(at)), exits }] : [];
+  });
 }
 
 export function isRosterFull(roster, board) {
@@ -101,11 +147,12 @@ export function enhanceRoster(roster, board) {
   }
   const build = builds.length > 0 && (upgrades.length === 0 || draw() < 0.5);
   if (build) {
-    const { at, exit } = builds[Math.floor(draw() * builds.length)];
+    const { at, exit, exits } = builds[Math.floor(draw() * builds.length)];
     const unit = drawUnit(roster.theme, draw(), draw());
     const entry = { at, exit, unit, level: 1, side: roster.side };
+    const barracks = exits ? roster.barracks.map((built) => ({ ...built, exit: exits.get(keyAt(built.at)) })) : roster.barracks;
     return {
-      roster: { ...roster, seed, barracks: [...roster.barracks, entry] },
+      roster: { ...roster, seed, barracks: [...barracks, entry] },
       at,
       kind: 'build',
       label: `建造${unit.name}兵营（${at[0]}行${at[1]}列）`,

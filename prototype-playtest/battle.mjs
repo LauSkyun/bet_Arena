@@ -1,13 +1,10 @@
-import { boardColumns, boardRows, currentBoard, keyAt, mapFor, openingOwner } from './roster.mjs';
+import { barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
 export const currentCombatRules = 2;
 const sides = ['red', 'blue'];
-const directions = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-const distance = ([row, col], [otherRow, otherCol]) => Math.abs(row - otherRow) + Math.abs(col - otherCol);
 const enemy = (side) => side === 'red' ? 'blue' : 'red';
-const onBoard = ([row, col], board) => row >= 1 && row <= boardRows(board) && col >= 1 && col <= boardColumns;
 const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = false) =>
   [hp, damage, range, attackMs].every((value) => Number.isSafeInteger(value) && value > 0) &&
   attackMs % battleRules.stepMs === 0 && (!needsLimit || (Number.isSafeInteger(limit) && limit > 0 && limit <= 10));
@@ -37,21 +34,23 @@ function makeState(loadout, board) {
     const map = mapFor(side, board);
     const setup = loadout?.[side];
     if (setup?.side !== side || !Array.isArray(setup.base) || keyAt(setup.base) !== keyAt(map.base) ||
-      !Array.isArray(setup.barracks) || setup.barracks.length > map.plots.length ||
+      !Array.isArray(setup.barracks) || setup.barracks.length > (hasExpansion(board) ? barracksLimit : map.plots.length) ||
       !Array.isArray(setup.startingUnits) || setup.startingUnits.length !== map.starts.length) throw Error('Invalid battle loadout');
     terrain[keyAt(map.base)] = 'base';
     buildings.push({ id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' });
     for (const plot of map.plots) {
       terrain[keyAt(plot.at)] = 'plot';
     }
+    const exits = hasExpansion(board) ? expansionExits(side, board, setup.barracks.map(({ at }) => at)) : null;
+    if (hasExpansion(board) && !exits) throw Error('Invalid barracks exits');
     const used = new Set();
     for (const barracks of setup.barracks) {
       const plot = map.plots.find(({ at }) => keyAt(at) === keyAt(barracks.at));
-      if (!plot || used.has(keyAt(plot.at)) || keyAt(plot.exit) !== keyAt(barracks.exit) ||
+      if (!plot || used.has(keyAt(plot.at)) || keyAt(exits ? exits.get(keyAt(plot.at)) : plot.exit) !== keyAt(barracks.exit) ||
         barracks.side !== side || !usableStats(barracks.unit, true)) throw Error('Invalid barracks');
       used.add(keyAt(plot.at));
       terrain[keyAt(plot.at)] = 'barracks';
-      buildings.push({ id: ++sequence, side, at: plot.at, exit: plot.exit, unit: barracks.unit,
+      buildings.push({ id: ++sequence, side, at: plot.at, exit: barracks.exit, unit: barracks.unit,
         hp: battleRules.barracksHp, kind: 'barracks', nextSpawn: battleRules.spawnMs });
     }
     const startKeys = new Set(setup.startingUnits.map(({ at }) => keyAt(at)));
@@ -64,7 +63,10 @@ function makeState(loadout, board) {
   return { terrain, owners, buildings, units, sequence };
 }
 
-const passable = (terrain, at) => ['ground', 'ruins'].includes(terrain[keyAt(at)]);
+const passable = (terrain, at, board) => {
+  const tile = terrain[keyAt(at)];
+  return tile === 'ground' || tile === 'ruins' || (tile === 'plot' && hasExpansion(board));
+};
 
 function makeRoutes(terrain, board) {
   const cache = new Map();
@@ -74,11 +76,9 @@ function makeRoutes(terrain, board) {
     const visited = new Set([keyAt(start)]);
     const queue = [{ at: start, first: null, steps: 0 }];
     for (const current of queue) {
-      for (const [dr, dc] of directions) {
-        // Mirroring the vertical tie-break preserves symmetry between the two team layouts.
-        const next = [current.at[0] + (side === 'blue' ? -dr : dr), current.at[1] + dc];
+      for (const next of neighbours(current.at, side, board)) {
         const nextKey = keyAt(next);
-        if (!onBoard(next, board) || !passable(terrain, next) || visited.has(nextKey)) continue;
+        if (!onBoard(next, board) || !passable(terrain, next, board) || visited.has(nextKey)) continue;
         visited.add(nextKey);
         queue.push({ at: next, first: current.first ?? next, steps: current.steps + 1 });
       }
@@ -192,7 +192,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     building.nextSpawn ??= elapsed + battleRules.spawnMs;
     if (building.nextSpawn > elapsed) continue;
     building.nextSpawn = elapsed + battleRules.spawnMs;
-    if (!passable(state.terrain, building.exit)) continue;
+    if (!passable(state.terrain, building.exit, board)) continue;
     const unit = { ...building.unit, id: ++state.sequence, at: building.exit, side: building.side,
       source: building.id, target: null, nextAttack: elapsed };
     state.units.push(unit);
