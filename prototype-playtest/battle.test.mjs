@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceBattle, applyOccupancy, frameAt, simulateBattle } from './battle.mjs';
-import { battleLoadout, drawUnit, mapFor, newRoster } from './roster.mjs';
+import { advanceBattle, applyOccupancy, frameAt, replayFor, simulateBattle } from './battle.mjs';
+import { battleLoadout, drawUnit, keyAt, mapFor, newRoster } from './roster.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
+import { upgradeSession } from './storage.mjs';
 
 const toLoadout = () => ({ red: battleLoadout(newRoster('red', 73)), blue: battleLoadout(newRoster('blue', 22)) });
 const walking = (id, side, at, hp = 40) => ({ id, side, at, hp, damage: 6, range: 1, attackMs: 1000, target: null, nextAttack: 0 });
@@ -136,4 +137,28 @@ test('a real sealed round transfers each captured scoring tile and settles the s
   assert.deepEqual(settled.round.result.scores, replay.result.scores);
   assert.equal(settled.round.result.credit, 374);
   assert.equal(settled.balance, 9_974);
+});
+
+test('the recorded diagonal pursuit gets into range while older rounds retain their replay', () => {
+  const start = newSession('recorded-reversal', 0, undefined, 0);
+  const times = timeline(start.round);
+  const { round } = advance(start, times.lock);
+  assert.deepEqual(round.snapshot.battle.red.barracks.map(({ at, unit }) => [at, unit.tier]), [[[1, 5], '中型']]);
+  assert.deepEqual(round.snapshot.battle.blue.barracks.map(({ at, unit }) => [at, unit.tier]), [[[9, 4], '中型']]);
+  const old = JSON.parse(JSON.stringify({ ...start, version: 5, round }));
+  delete old.round.combatRules;
+  const restored = upgradeSession(old);
+  const replay = (round) => replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules);
+  const before = replay(restored.round);
+  const fixed = replay(round);
+  const positions = (frame) => frame.units.map(({ id, at }) => [id, at]);
+  assert.deepEqual(positions(frameAt(before, 37_500)), positions(frameAt(before, 38_500)));
+  assert.notDeepEqual(positions(frameAt(before, 37_500)), positions(frameAt(before, 38_000)));
+  assert.ok(fixed.frames.slice(-6).every(({ units }) =>
+    units.some(({ side, at }) => side === 'red' && keyAt(at) === '5-5') &&
+    units.some(({ side, at }) => side === 'blue' && keyAt(at) === '6-5')));
+  const health = ({ units }) => units.reduce((sum, unit) => sum + unit.hp, 0);
+  assert.ok(health(frameAt(fixed, 37_500)) < health(frameAt(fixed, 37_000)));
+  assert.deepEqual(advance(restored, times.finish).round.result.scores, before.result.scores);
+  assert.equal(advance(restored, times.next).round.combatRules, round.combatRules);
 });

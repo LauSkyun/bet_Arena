@@ -1,6 +1,8 @@
 import { boardColumns, boardRows, currentBoard, keyAt, mapFor, openingOwner } from './roster.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
+export const previousCombatRules = 1;
+export const currentCombatRules = 2;
 const sides = ['red', 'blue'];
 const directions = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 const distance = ([row, col], [otherRow, otherCol]) => Math.abs(row - otherRow) + Math.abs(col - otherCol);
@@ -124,7 +126,21 @@ export function applyOccupancy(owners, entries) {
   }
 }
 
-export function advanceBattle(state, elapsed, board = currentBoard) {
+function resolveReversals(plans, elapsed) {
+  const pending = new Map(plans.map((plan) => [plan.unit.id, plan]));
+  const turn = Math.floor(elapsed / battleRules.stepMs);
+  const yieldingSide = turn % 2 === 0 ? 'red' : 'blue';
+  for (const plan of plans) {
+    const { unit, at } = plan;
+    if (unit.side !== yieldingSide || !at || !unit.lastAt || distance(at, unit.lastAt) !== 0) continue;
+    const rival = pending.get(unit.target);
+    if (!rival?.at || !rival.unit.lastAt || distance(rival.at, rival.unit.lastAt) !== 0) continue;
+    const engagementRange = Math.max(unit.range, rival.unit.range);
+    if (distance(at, rival.at) > engagementRange && distance(unit.at, rival.at) <= engagementRange) plan.at = null;
+  }
+}
+
+export function advanceBattle(state, elapsed, board = currentBoard, combatRules = currentCombatRules) {
   const routes = makeRoutes(state.terrain, board);
   const arrivals = [];
   if (elapsed === 0) arrivals.push(...state.units);
@@ -133,13 +149,16 @@ export function advanceBattle(state, elapsed, board = currentBoard) {
       const route = routes(unit.at, unit.side);
       const target = chooseTarget(unit, state.units, state.buildings, route);
       unit.target = target?.id ?? null;
-      if (target) return route.find(({ at }) => distance(at, target.at) <= unit.range)?.first;
-      return march(unit, state.buildings, route, state.terrain, board);
+      const at = target ? route.find(({ at }) => distance(at, target.at) <= unit.range)?.first
+        : march(unit, state.buildings, route, state.terrain, board);
+      return { unit, at };
     });
-    for (const [index, at] of moves.entries()) {
+    if (combatRules === currentCombatRules) resolveReversals(moves, elapsed);
+    for (const { unit, at } of moves) {
+      unit.lastAt = at ? unit.at : null;
       if (!at) continue;
-      state.units[index].at = at;
-      arrivals.push(state.units[index]);
+      unit.at = at;
+      arrivals.push(unit);
     }
   }
 
@@ -195,13 +214,13 @@ function frame(state, elapsed) {
     units: state.units.map(({ id, side, at, hp, name, source }) => ({ id, side, at, hp, name, source })) };
 }
 
-export function simulateBattle(loadout, durationMs, board = currentBoard) {
+export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules) {
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const state = makeState(loadout, board);
     const frames = [];
     for (let elapsed = 0; elapsed <= durationMs; elapsed += battleRules.stepMs) {
-      advanceBattle(state, elapsed, board);
+      advanceBattle(state, elapsed, board, combatRules);
       frames.push(frame(state, elapsed));
     }
     const scores = frames.at(-1).scores;
@@ -214,11 +233,11 @@ export function simulateBattle(loadout, durationMs, board = currentBoard) {
 
 // A refresh regenerates the same stream from the persisted sealed roster. Keep only the latest two streams in memory.
 const replays = new Map();
-export function replayFor(loadout, durationMs, board) {
-  const key = JSON.stringify([board, durationMs, loadout]);
+export function replayFor(loadout, durationMs, board, combatRules = currentCombatRules) {
+  const key = JSON.stringify([board, combatRules, durationMs, loadout]);
   if (!replays.has(key)) {
     if (replays.size >= 2) replays.delete(replays.keys().next().value);
-    replays.set(key, simulateBattle(loadout, durationMs, board));
+    replays.set(key, simulateBattle(loadout, durationMs, board, combatRules));
   }
   return replays.get(key);
 }

@@ -1,7 +1,7 @@
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
-import { replayFor } from './battle.mjs';
+import { currentCombatRules, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
 const lockMs = 2_000;
@@ -9,7 +9,7 @@ const resultMs = 5_000;
 const roundSpan = ({ betMs, battleMs }) => betMs + lockMs + battleMs + resultMs;
 
 export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations) {
-  return { version: 5, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
+  return { version: 6, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
     round: newRound(1, now, seed, durations), previous: null };
 }
 
@@ -24,6 +24,7 @@ function newRound(number, startedAt, seed, durations) {
   return {
     number,
     board: currentBoard,
+    combatRules: currentCombatRules,
     startedAt,
     durations,
     ...initialBetting(seedFor(seed, number, 0), seedFor(seed, number, 1)),
@@ -45,7 +46,7 @@ export function advance(session, now) {
   if (now < time.finish) return session;
 
   if (!session.round.result) {
-    const { result } = replayFor(sealed.snapshot.battle, sealed.durations.battleMs, sealed.board);
+    const { result } = replayFor(sealed.snapshot.battle, sealed.durations.battleMs, sealed.board, sealed.combatRules);
     session = settleSession(session, result, time.finish, now);
   }
   if (now < time.next) return session;
@@ -61,7 +62,7 @@ export function advance(session, now) {
   if (lastSkipped) {
     const previousTime = timeline(lastSkipped);
     const previousRound = advanceBetting(lastSkipped, session.reference, previousTime.lock, previousTime.finish);
-    const { result } = replayFor(previousRound.snapshot.battle, previousRound.durations.battleMs, previousRound.board);
+    const { result } = replayFor(previousRound.snapshot.battle, previousRound.durations.battleMs, previousRound.board, previousRound.combatRules);
     previous = settleSession({ ...session, round: previousRound }, result, previousTime.finish, now).round.result;
   }
   const next = { ...session, round: current, previous };

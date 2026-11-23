@@ -15,7 +15,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-playtest.v1';
+const pendingKey = 'bet-arena.prototype.pending-flicker-fix.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -199,7 +199,7 @@ function render(session, now) {
   progress.hidden = stage.phase !== 'battle';
   progress.value = stage.progress ?? 0;
   const showBattle = ['battle', 'settling', 'result'].includes(stage.phase);
-  const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board) : null;
+  const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules) : null;
   const frame = replay ? frameAt(replay, stage.elapsedMs ?? battleMs) : null;
   const latestEffects = stage.phase === 'bet' ? round.lastEffects : [];
   renderBoard(round.board, teams, frame, latestEffects);
