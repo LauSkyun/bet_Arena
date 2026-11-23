@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>竞猜竞技场</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>竞猜竞技场</h1><span class="subheading">单人试玩 · 测试积分</span></div>
+      <button id="reset" class="secondary">新建试玩</button>
+    </header>
+    <details id="timing-settings" class="timing-settings">
+      <summary>下一轮时长设置</summary>
+      <p id="timing-current"></p>
+      <p id="timing-next"></p>
+      <form id="timing-form" class="timing-form" novalidate>
+        <label>下注时长（秒）<input id="bet-seconds" type="number" inputmode="numeric" min="1" step="1" required disabled></label>
+        <label>战斗时长（秒）<input id="battle-seconds" type="number" inputmode="numeric" min="1" step="1" required disabled></label>
+        <button id="timing-save" type="submit" disabled>保存时长</button>
+      </form>
+      <p id="timing-feedback" class="notice" role="status"></p>
+    </details>
+    <section class="panel" aria-label="本轮状态">
+      <div class="summary">
+        <div><span>轮次</span><strong id="round">—</strong></div>
+        <div><span>测试积分</span><strong id="balance">—</strong></div>
+        <div><span id="time-label">剩余时间</span><strong id="time">—</strong></div>
+      </div>
+      <ol class="stages" aria-label="轮次阶段">
+        <li data-phase="bet">下注</li><li data-phase="lock">封盘</li><li data-phase="battle">战斗回放</li><li data-phase="result">下注结果</li>
+      </ol>
+      <p id="phase-text" aria-live="polite"></p>
+      <div class="arena-layout">
+      <section class="arena-field" aria-label="战况">
+      <div class="team red" id="team-red">
+        <div><strong>红队</strong> <span id="red-theme"></span></div>
+        <dl class="team-metrics" aria-label="红队下注数据">
+          <div><dt>回报率</dt><dd id="red-rate">—</dd></div>
+          <div><dt>我的下注</dt><dd id="red-own">0</dd></div>
+          <div><dt>队伍总投</dt><dd id="red-total">0</dd></div>
+        </dl>
+        <div class="team-detail"><span id="red-system"></span><span id="red-layout"></span><span id="red-threshold"></span></div>
+      </div>
+      <figure class="board-figure">
+        <p id="scores" class="scores"></p>
+        <div id="board" class="board" role="group" aria-label="10 行 7 列棋盘"></div>
+        <figcaption>棋盘显示基地、兵营和小兵。红蓝底色表示普通格归属。</figcaption>
+      </figure>
+      <progress id="progress" aria-label="回放进度" max="1" value="0" hidden></progress>
+      <div class="team blue" id="team-blue">
+        <div><strong>蓝队</strong> <span id="blue-theme"></span></div>
+        <dl class="team-metrics" aria-label="蓝队下注数据">
+          <div><dt>回报率</dt><dd id="blue-rate">—</dd></div>
+          <div><dt>我的下注</dt><dd id="blue-own">0</dd></div>
+          <div><dt>队伍总投</dt><dd id="blue-total">0</dd></div>
+        </dl>
+        <div class="team-detail"><span id="blue-system"></span><span id="blue-layout"></span><span id="blue-threshold"></span></div>
+      </div>
+      </section>
+      <section class="arena-controls" aria-label="下注与结算">
+      <form class="bet-form" id="bet-form" novalidate>
+        <fieldset id="bet-actions" disabled>
+          <legend>支持队伍</legend>
+          <label><input type="radio" name="side" value="red"> 红队</label>
+          <label><input type="radio" name="side" value="blue"> 蓝队</label>
+        </fieldset>
+        <label for="amount">投入点数</label>
+        <input id="amount" type="number" inputmode="numeric" min="1" step="1" value="100" required disabled>
+        <button id="bet-submit" type="submit" disabled>确认下注</button>
+      </form>
+      <p id="ticket">本轮尚未下注</p>
+      <p id="latest-effects" hidden></p>
+      <p id="notice" class="notice" role="status"></p>
+      <section id="result" class="result" aria-label="本轮结果" hidden>
+        <strong id="result-winner"></strong>
+        <span id="result-score"></span>
+        <span id="result-ticket"></span>
+        <span id="result-rate"></span>
+        <span id="result-net"></span>
+        <span id="result-credit"></span>
+      </section>
+      <details id="previous" class="previous" hidden><summary>上一轮结算</summary><p id="previous-summary"></p></details>
+      </section>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

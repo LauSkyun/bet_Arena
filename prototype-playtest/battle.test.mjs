@@ -1,0 +1,139 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { advanceBattle, applyOccupancy, frameAt, simulateBattle } from './battle.mjs';
+import { battleLoadout, drawUnit, mapFor, newRoster } from './roster.mjs';
+import { advance, newSession, placeBet, timeline } from './round.mjs';
+
+const toLoadout = () => ({ red: battleLoadout(newRoster('red', 73)), blue: battleLoadout(newRoster('blue', 22)) });
+const walking = (id, side, at, hp = 40) => ({ id, side, at, hp, damage: 6, range: 1, attackMs: 1000, target: null, nextAttack: 0 });
+
+function tinyState(owners, buildings, units) {
+  const terrain = Object.fromEntries(Object.keys(owners).map((key) => [key, 'ground']));
+  for (const building of buildings) terrain[building.at.join('-')] = building.kind;
+  return { owners, terrain, buildings, units, sequence: 200 };
+}
+
+test('arrival ownership persists, can flip back, excludes special tiles and preserves ties', () => {
+  const owners = { '5-5': 'blue', '5-6': 'red' };
+  applyOccupancy(owners, [{ side: 'red', at: [5, 5] }, { side: 'red', at: [1, 4] }]);
+  assert.deepEqual(owners, { '5-5': 'red', '5-6': 'red' });
+  applyOccupancy(owners, []);
+  assert.equal(owners['5-5'], 'red');
+  applyOccupancy(owners, [{ side: 'red', at: [5, 5] }, { side: 'blue', at: [5, 5] }]);
+  assert.equal(owners['5-5'], 'red');
+  applyOccupancy(owners, [{ side: 'blue', at: [5, 5] }]);
+  assert.equal(owners['5-5'], 'blue');
+});
+
+test('moves resolve before attacks and mutual lethal blows take effect together', () => {
+  const state = tinyState({ '6-3': 'red', '6-4': 'blue', '6-5': 'blue' }, [], [
+    walking(1, 'red', [6, 3], 6), walking(2, 'blue', [6, 5], 6),
+  ]);
+  advanceBattle(state, 500);
+  assert.equal(state.units.length, 0);
+  assert.equal(state.owners['6-4'], 'blue');
+});
+
+test('each of two vacancies restarts its barracks replenishment on the full half-second cadence', () => {
+  const unit = drawUnit('人族', 0, 0);
+  const building = { id: 1, kind: 'barracks', side: 'red', at: [1, 3], exit: [1, 2], hp: 120, nextSpawn: null, unit };
+  const state = tinyState({ '1-2': 'red' }, [building], Array.from({ length: 10 }, (_, i) => ({ ...walking(i + 2, 'red', [1, 2]), source: 1 })));
+  state.units[0].hp = 0;
+  state.units[1].hp = 0;
+  advanceBattle(state, 1000);
+  assert.equal(state.units.length, 8);
+  assert.equal(building.nextSpawn, 1500);
+  advanceBattle(state, 1500);
+  assert.equal(state.units.length, 9);
+  advanceBattle(state, 2000);
+  assert.equal(state.units.length, 10);
+  assert.equal(building.nextSpawn, null);
+});
+
+test('damage destroys a barracks before its due spawn and living soldiers remain', () => {
+  const building = { id: 1, kind: 'barracks', side: 'red', at: [1, 3], exit: [1, 2], hp: 6, nextSpawn: 500, unit: drawUnit('人族', 0, 0) };
+  const state = tinyState({ '1-2': 'red', '1-4': 'blue' }, [building], [
+    { ...walking(2, 'red', [1, 2]), source: 1 }, walking(3, 'blue', [1, 4]),
+  ]);
+  advanceBattle(state, 500);
+  assert.equal(state.terrain['1-3'], 'ruins');
+  assert.equal(state.buildings.length, 0);
+  assert.equal(state.units.filter(({ source }) => source === 1).length, 1);
+  assert.equal(Object.hasOwn(state.owners, '1-3'), false);
+});
+
+test('a blocked exit retries and an occupied accessible exit allows another unit', () => {
+  const building = { id: 1, kind: 'barracks', side: 'red', at: [1, 3], exit: [1, 2], hp: 120, nextSpawn: 500, unit: drawUnit('人族', 0, 0) };
+  const state = tinyState({ '1-2': 'red' }, [building], []);
+  state.terrain['1-2'] = 'plot';
+  advanceBattle(state, 500);
+  assert.equal(state.units.length, 0);
+  state.terrain['1-2'] = 'ground';
+  state.units.push(walking(2, 'red', [1, 2]));
+  advanceBattle(state, 1000);
+  assert.equal(state.units.length, 2);
+  assert.deepEqual(state.units.map(({ at }) => at), [[1, 2], [1, 2]]);
+});
+
+test('same roster reproduces the frame sequence, with a tie and frozen final scores on a symmetric board', () => {
+  const loadout = toLoadout();
+  const first = simulateBattle(loadout, 25_000);
+  const restored = simulateBattle(JSON.parse(JSON.stringify(loadout)), 25_000);
+  assert.deepEqual(first, restored);
+  assert.equal(first.result.winner, 'draw');
+  assert.equal(first.frames.length, 51);
+  assert.deepEqual(first.frames[0].scores, { red: 28, blue: 28 });
+  assert.ok(first.frames.every(({ scores }) => scores.red + scores.blue === 56));
+  assert.equal(frameAt(first, 999).elapsed, 500);
+  assert.deepEqual(frameAt(first, 25_000).scores, first.result.scores);
+  assert.equal(frameAt(first, 25_001).elapsed, 25_000);
+  const special = [mapFor('red').base, ...mapFor('red').plots.map(({ at }) => at)];
+  assert.ok(special.every((at) => !Object.hasOwn(first.frames[0].owners, at.join('-'))));
+});
+
+test('the game continues after the main base falls and favors the side with more final ground', () => {
+  const loadout = toLoadout();
+  loadout.red.startingUnits = loadout.red.startingUnits.map((unit) => ({ ...unit, damage: 300, hp: 1000, range: 3 }));
+  const battle = simulateBattle(loadout, 25_000);
+  const destroyed = battle.frames.find((frame) => frame.terrain['10-4'] === 'ruins');
+  assert.ok(destroyed && destroyed.elapsed < 25_000);
+  assert.equal(Object.hasOwn(destroyed.owners, '10-4'), false);
+  assert.ok(battle.frames.every(({ scores }) => scores.red + scores.blue === 56));
+  assert.equal(battle.frames.at(-1).elapsed, 25_000);
+  assert.ok(battle.result.scores.red > battle.result.scores.blue);
+  assert.equal(battle.result.winner, 'red');
+});
+
+test('an invalid battle returns a void result and settlement refunds the stake', () => {
+  const session = newSession('void', 0, [], 73);
+  const active = placeBet(session, 1, { sessionId: 'void', roundNumber: 1, requestId: 'bet', side: 'red', amount: 10 }).session;
+  const { lock, finish } = timeline(active.round);
+  const sealed = advance(active, lock);
+  const invalid = structuredClone(sealed);
+  invalid.round.snapshot.battle.red.base = [0, 0];
+  const returned = advance(invalid, finish);
+  assert.deepEqual(returned.round.result.scores, null);
+  assert.equal(returned.round.result.winner, 'void');
+  assert.equal(returned.balance, 10000);
+});
+
+test('a real sealed round transfers each captured scoring tile and settles the same final battle', () => {
+  const session = newSession('capture', 0, undefined, 2);
+  const red = placeBet(session, 1_000, { sessionId: session.id, roundNumber: 1, side: 'red', amount: 340, requestId: 'red' }).session;
+  const both = placeBet(red, 2_000, { sessionId: session.id, roundNumber: 1, side: 'blue', amount: 60, requestId: 'blue' }).session;
+  const time = timeline(both.round);
+  const locked = advance(both, time.lock);
+  const replay = simulateBattle(locked.round.snapshot.battle, 40_000, locked.round.board);
+  const first = replay.frames[0];
+  const before = frameAt(replay, 4_500);
+  const after = frameAt(replay, 5_000);
+  assert.deepEqual(first.scores, { red: 28, blue: 28 });
+  assert.equal(before.owners['6-4'], 'blue');
+  assert.equal(after.owners['6-4'], 'red');
+  assert.deepEqual(after.scores, { red: before.scores.red + 1, blue: before.scores.blue - 1 });
+  assert.ok(replay.frames.every(({ scores }) => scores.red + scores.blue === 56));
+  const settled = advance(JSON.parse(JSON.stringify(locked)), time.finish);
+  assert.deepEqual(settled.round.result.scores, replay.result.scores);
+  assert.equal(settled.round.result.credit, 374);
+  assert.equal(settled.balance, 9_974);
+});
