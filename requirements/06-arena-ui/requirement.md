@@ -4,7 +4,7 @@
 | --- | --- |
 | 功能编号 | 06-arena-ui |
 | 状态 | 已确认方向 · 原型实施稿 |
-| 版本 | v0.2 · 2026-11-23 |
+| 版本 | v0.3 · 2026-11-23 |
 | 关联 | [轮次与阶段](../01-core-loop/requirement.md) · [下注与封盘](../02-betting/requirement.md) · [自动战斗与占格](../04-battle/requirement.md) · [积分结算](../05-settlement/requirement.md) |
 
 ## 1. 入口与共通布局
