@@ -37,7 +37,7 @@ test('two confirmed contributions settle from the sealed amount when returning a
   const ticket = { sessionId: start.id, roundNumber: 1, side: 'red' };
   const first = placeBet(start, 1, { ...ticket, requestId: 'first', amount: 10 }).session;
   const second = placeBet(first, 2, { ...ticket, requestId: 'second', amount: 20 }).session;
-  const time = timeline(second.round);
+  const time = timeline(advance(second, timeline(second.round).lock).round);
   const beforeFinish = advance(second, time.finish - 1);
   assert.equal(beforeFinish.balance, 9970);
   assert.equal(beforeFinish.round.result, null);

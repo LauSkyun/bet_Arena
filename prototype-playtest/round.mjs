@@ -2,14 +2,14 @@ import { battleDataFor } from './battle-data.mjs';
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
-import { currentCombatRules, replayFor } from './battle.mjs';
+import { baseVictoryRules, currentCombatRules, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 7;
+export const sessionVersion = 8;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
-const roundSpan = ({ betMs, battleMs }) => betMs + lockMs + battleMs + resultMs;
+const catchUpBatch = 32;
 
 export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard) {
   return { version: sessionVersion, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
@@ -35,42 +35,39 @@ function newRound(number, startedAt, seed, durations, board = currentBoard) {
   };
 }
 
+function replayForRound(round) {
+  return replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules);
+}
+
 export function timeline(round) {
   const lock = round.startedAt + round.durations.betMs;
   const battle = lock + lockMs;
-  const finish = battle + round.durations.battleMs;
+  const earlyEnd = round.combatRules >= baseVictoryRules && round.snapshot
+    ? round.result?.endedAtMs ?? replayForRound(round).result.endedAtMs : undefined;
+  const finish = battle + (earlyEnd ?? round.durations.battleMs);
   return { lock, battle, finish, next: finish + resultMs };
 }
 
 export function advance(session, now) {
-  const time = timeline(session.round);
-  const sealed = advanceBetting(session.round, session.reference, time.lock, now);
-  if (sealed !== session.round) session = { ...session, round: sealed };
-  if (now < time.finish) return session;
+  let lastFinished = null;
+  for (let processed = 0; processed < catchUpBatch; processed++) {
+    const round = session.round;
+    const lock = round.startedAt + round.durations.betMs;
+    const sealed = advanceBetting(round, session.reference, lock, now);
+    if (sealed !== round) session = { ...session, round: sealed };
+    if (now < lock + lockMs) break;
+    const time = timeline(sealed);
+    if (now < time.finish) break;
 
-  if (!session.round.result) {
-    const { result } = replayFor(sealed.snapshot.battle, sealed.durations.battleMs, sealed.board, sealed.combatRules);
-    session = settleSession(session, result, time.finish, now);
+    if (!sealed.result) session = settleSession(session, replayForRound(sealed).result, time.finish, now);
+    if (now < time.next) break;
+
+    lastFinished = session.round;
+    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations) };
   }
-  if (now < time.next) return session;
-
-  const { round, nextDurations } = session;
-
-  // Any skipped later rounds have no player stake, so they contribute no balance changes.
-  const span = roundSpan(nextDurations);
-  const skipped = Math.floor((now - time.next) / span);
-  const current = newRound(round.number + 1 + skipped, time.next + skipped * span, session.seed, nextDurations);
-  const lastSkipped = skipped > 0 ? newRound(current.number - 1, current.startedAt - span, session.seed, nextDurations) : null;
-  let lastFinished = round;
-  if (lastSkipped) {
-    const previousTime = timeline(lastSkipped);
-    const previousRound = advanceBetting(lastSkipped, session.reference, previousTime.lock, previousTime.finish);
-    const { result } = replayFor(previousRound.snapshot.battle, previousRound.durations.battleMs, previousRound.board, previousRound.combatRules);
-    lastFinished = settleSession({ ...session, round: previousRound }, result, previousTime.finish, now).round;
-  }
+  if (!lastFinished) return session;
   const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };
-  const next = { ...session, round: current, previous };
-  return advance(next, now);
+  return { ...session, previous };
 }
 
 export function view(session, now) {
@@ -80,17 +77,23 @@ export function view(session, now) {
   if (now < time.lock) return { phase: 'bet', remainingMs: time.lock - now };
   if (now < time.battle) return { phase: 'lock', remainingMs: time.battle - now };
   if (now < time.finish) {
-    return { phase: 'battle', remainingMs: time.finish - now, elapsedMs: now - time.battle, progress: (now - time.battle) / round.durations.battleMs };
+    const elapsedMs = now - time.battle;
+    return { phase: 'battle', remainingMs: round.durations.battleMs - elapsedMs, elapsedMs, progress: elapsedMs / round.durations.battleMs };
   }
   return { phase: 'settling', remainingMs: 0 };
 }
 
 export function placeBet(session, now, request) {
-  return confirmBet(advance(session, now), now, request);
+  const current = advance(session, now);
+  if (!current.round.snapshot && now >= current.round.startedAt + current.round.durations.betMs) {
+    return { session: current, error: '正在恢复轮次，请稍后下注。' };
+  }
+  return confirmBet(current, now, request);
 }
 
 export function saveRoundDurations(session, now, betSeconds, battleSeconds) {
   const current = advance(session, now);
+  if (now >= timeline(current.round).next) return { session: current, error: '正在恢复轮次，请稍后保存。' };
   const durations = durationsFromSeconds(betSeconds, battleSeconds);
   if (!durations) return { session: current, error: `下注和战斗时长均须为 1–${secondsLimit} 秒的整数。` };
   return { session: { ...current, nextDurations: durations } };

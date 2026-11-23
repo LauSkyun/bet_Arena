@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceBattle, applyOccupancy, frameAt, replayFor, simulateBattle } from './battle.mjs';
-import { battleLoadout, drawUnit, keyAt, mapFor, newRoster, priorBoard } from './roster.mjs';
+import { advanceBattle, applyOccupancy, baseVictoryRules, countGround, damageTiebreakRules, frameAt, replayFor, simulateBattle } from './battle.mjs';
+import { battleLoadout, drawUnit, keyAt, mapFor, newRoster, priorBoard, validBuilds } from './roster.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
@@ -60,7 +60,7 @@ test('damage destroys a barracks before its due spawn and living soldiers remain
   assert.equal(state.terrain['1-3'], 'ruins');
   assert.equal(state.buildings.length, 0);
   assert.equal(state.units.filter(({ source }) => source === 1).length, 1);
-  assert.equal(Object.hasOwn(state.owners, '1-3'), false);
+  assert.equal(state.owners['1-3'], 'red');
 });
 
 test('a blocked exit retries and an occupied accessible exit allows another unit', () => {
@@ -88,14 +88,14 @@ test('same roster reproduces the frame sequence, with a tie and frozen final sco
   assert.equal(frameAt(first, 999).elapsed, 500);
   assert.deepEqual(frameAt(first, 25_000).scores, first.result.scores);
   assert.equal(frameAt(first, 25_001).elapsed, 25_000);
-  const special = [mapFor('red').base, ...mapFor('red').plots.map(({ at }) => at)];
-  assert.ok(special.every((at) => !Object.hasOwn(first.frames[0].owners, at.join('-'))));
+  assert.equal(Object.hasOwn(first.frames[0].owners, keyAt(mapFor('red').base)), false);
+  assert.ok(mapFor('red').plots.every(({ at }) => first.frames[0].owners[keyAt(at)] === 'red'));
 });
 
 test('the game continues after the main base falls and favors the side with more final ground', () => {
   const loadout = toLoadout();
   loadout.red.startingUnits = loadout.red.startingUnits.map((unit) => ({ ...unit, damage: 300, hp: 1000, range: 3 }));
-  const battle = simulateBattle(loadout, 25_000);
+  const battle = simulateBattle(loadout, 25_000, undefined, damageTiebreakRules);
   const destroyed = battle.frames.find((frame) => frame.terrain['14-4'] === 'ruins');
   assert.ok(destroyed && destroyed.elapsed < 25_000);
   assert.equal(Object.hasOwn(destroyed.owners, '14-4'), false);
@@ -120,11 +120,12 @@ test('an invalid battle returns a void result and settlement refunds the stake',
 
 test('a real sealed round transfers each captured scoring tile and settles the same final battle', () => {
   const session = newSession('capture', 0, undefined, 2, undefined, priorBoard);
+  session.round.combatRules = damageTiebreakRules;
   const red = placeBet(session, 1_000, { sessionId: session.id, roundNumber: 1, side: 'red', amount: 340, requestId: 'red' }).session;
   const both = placeBet(red, 2_000, { sessionId: session.id, roundNumber: 1, side: 'blue', amount: 60, requestId: 'blue' }).session;
   const time = timeline(both.round);
   const locked = advance(both, time.lock);
-  const replay = simulateBattle(locked.round.snapshot.battle, 40_000, locked.round.board);
+  const replay = simulateBattle(locked.round.snapshot.battle, 40_000, locked.round.board, locked.round.combatRules);
   const first = replay.frames[0];
   const before = frameAt(replay, 4_500);
   const after = frameAt(replay, 5_000);
@@ -161,4 +162,62 @@ test('the recorded diagonal pursuit gets into range while older rounds retain th
   assert.ok(health(frameAt(fixed, 37_500)) < health(frameAt(fixed, 37_000)));
   assert.deepEqual(advance(restored, times.finish).round.result.scores, before.result.scores);
   assert.equal(advance(restored, times.next).round.combatRules, round.combatRules);
+});
+
+test('an enemy soldier recolors a traversable building plot without changing the territory score', () => {
+  const setup = (side, target, tier) => {
+    const roster = newRoster(side, 0);
+    const { at, exit } = validBuilds(roster).find(({ at }) => keyAt(at) === target);
+    roster.barracks = [{ at, exit, side, unit: drawUnit('人族', 0, tier), level: 1 }];
+    return battleLoadout(roster);
+  };
+  const loadout = { red: setup('red', '2-5', .85), blue: setup('blue', '14-5', .5) };
+  const before = simulateBattle(loadout, 60_000, undefined, damageTiebreakRules);
+  const after = simulateBattle(loadout, 60_000, undefined, baseVictoryRules);
+  const tile = '7-5';
+  assert.equal(frameAt(before, 6500).terrain[tile], 'plot');
+  assert.equal(frameAt(before, 6500).owners[tile], undefined);
+  assert.equal(frameAt(after, 6000).owners[tile], 'red');
+  const captured = frameAt(after, 6500);
+  assert.equal(captured.owners[tile], 'blue');
+  assert.ok(captured.units.some(({ side, at }) => side === 'blue' && keyAt(at) === tile));
+  assert.deepEqual(captured.scores, { red: 28, blue: 28 });
+  assert.ok(after.frames.every(({ scores }) => scores.red + scores.blue === 56));
+});
+
+test('single-team survivors take a contested tile and a ruin separately from scoring', () => {
+  const ground = walking(1, 'blue', [6, 2]);
+  const ruin = walking(2, 'blue', [8, 2]);
+  const contested = walking(3, 'red', [6, 2]);
+  const state = tinyState({ '6-2': 'red', '8-2': 'red' }, [], [ground, ruin, contested]);
+  state.terrain['8-2'] = 'ruins';
+  advanceBattle(state, 0);
+  assert.equal(state.owners['6-2'], 'red');
+  assert.equal(state.owners['8-2'], 'blue');
+  assert.deepEqual(countGround(state.owners, state.terrain), { red: 1, blue: 0 });
+  state.units.pop();
+  advanceBattle(state, 500);
+  assert.equal(state.owners['6-2'], 'blue');
+  assert.deepEqual(countGround(state.owners, state.terrain), { red: 0, blue: 1 });
+});
+
+test('main base destruction settles at the actual tick and starts the next round five seconds later', () => {
+  const session = newSession('base-win', 0, undefined, 10);
+  const paid = placeBet(session, 1, { sessionId: session.id, roundNumber: 1, requestId: 'bet', side: 'red', amount: 200 }).session;
+  const sealed = advance(paid, 60_000);
+  const time = timeline(sealed.round);
+  assert.equal(time.finish, 80_500);
+  assert.equal(time.next, 85_500);
+  assert.equal(advance(sealed, 80_499).balance, 9800);
+  const ended = advance(sealed, 80_500);
+  assert.equal(ended.balance, 10_020);
+  assert.deepEqual(ended.round.result.fallenBases, ['blue']);
+  assert.equal(ended.round.result.decidedBy, 'base');
+  assert.equal(ended.round.result.endedAtMs, 18_500);
+  assert.equal(ended.round.result.damage, undefined);
+  const restored = advance(JSON.parse(JSON.stringify(ended)), 85_500);
+  assert.equal(restored.round.startedAt, 85_500);
+  assert.equal(restored.round.number, 2);
+  assert.equal(restored.balance, 10_020);
+  assert.equal(restored.previous.battleData.result.decidedBy, 'base');
 });

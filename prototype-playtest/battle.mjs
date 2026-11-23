@@ -4,7 +4,8 @@ export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, 
 export const previousCombatRules = 1;
 export const reversalCombatRules = 2;
 export const damageTiebreakRules = 3;
-export const currentCombatRules = damageTiebreakRules;
+export const baseVictoryRules = 4;
+export const currentCombatRules = baseVictoryRules;
 const sides = ['red', 'blue'];
 const enemy = (side) => side === 'red' ? 'blue' : 'red';
 const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = false) =>
@@ -27,7 +28,7 @@ export function openingGround(board) {
   return owners;
 }
 
-function makeState(loadout, board) {
+function makeState(loadout, board, occupationIncludesSpecial) {
   const owners = openingGround(board);
   const terrain = Object.fromEntries(Object.keys(owners).map((key) => [key, 'ground']));
   const buildings = [], units = [];
@@ -42,6 +43,7 @@ function makeState(loadout, board) {
     buildings.push({ id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' });
     for (const plot of map.plots) {
       terrain[keyAt(plot.at)] = 'plot';
+      if (occupationIncludesSpecial && hasExpansion(board)) owners[keyAt(plot.at)] = side;
     }
     const exits = hasExpansion(board) ? expansionExits(side, board, setup.barracks.map(({ at }) => at)) : null;
     if (hasExpansion(board) && !exits) throw Error('Invalid barracks exits');
@@ -52,6 +54,7 @@ function makeState(loadout, board) {
         barracks.side !== side || !usableStats(barracks.unit, true)) throw Error('Invalid barracks');
       used.add(keyAt(plot.at));
       terrain[keyAt(plot.at)] = 'barracks';
+      delete owners[keyAt(plot.at)];
       buildings.push({ id: ++sequence, side, at: plot.at, exit: barracks.exit, unit: barracks.unit,
         hp: battleRules.barracksHp, kind: 'barracks', nextSpawn: battleRules.spawnMs });
     }
@@ -143,6 +146,7 @@ function resolveReversals(plans, elapsed, board) {
 }
 
 export function advanceBattle(state, elapsed, board = currentBoard, combatRules = currentCombatRules) {
+  const occupationIncludesSpecial = combatRules >= baseVictoryRules;
   const routes = makeRoutes(state.terrain, board);
   const arrivals = [];
   if (elapsed === 0) arrivals.push(...state.units);
@@ -178,7 +182,10 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     target.hp -= damage;
   }
   for (const building of state.buildings) {
-    if (building.hp <= 0) state.terrain[keyAt(building.at)] = 'ruins';
+    if (building.hp > 0) continue;
+    const key = keyAt(building.at);
+    state.terrain[key] = 'ruins';
+    if (occupationIncludesSpecial) state.owners[key] = building.side;
   }
   state.units = state.units.filter(({ hp }) => hp > 0);
   state.buildings = state.buildings.filter(({ hp }) => hp > 0);
@@ -204,17 +211,19 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     arrivals.push(unit);
     if (live + 1 === building.unit.limit) building.nextSpawn = null;
   }
-  applyOccupancy(state.owners, arrivals);
+  applyOccupancy(state.owners, occupationIncludesSpecial ? state.units : arrivals);
 }
 
-export function countGround(owners) {
+export function countGround(owners, terrain) {
   const scores = { red: 0, blue: 0 };
-  for (const owner of Object.values(owners)) if (owner) scores[owner]++;
+  for (const [key, owner] of Object.entries(owners)) {
+    if (owner && (!terrain || terrain[key] === 'ground')) scores[owner]++;
+  }
   return scores;
 }
 
 function frame(state, elapsed) {
-  return { elapsed, scores: countGround(state.owners), terrain: { ...state.terrain }, owners: { ...state.owners },
+  return { elapsed, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
     buildings: state.buildings.map(({ id, side, kind, at, hp }) => ({ id, side, kind, at, hp })),
     units: state.units.map(({ id, side, at, hp, name, source }) => ({ id, side, at, hp, name, source })) };
 }
@@ -222,22 +231,33 @@ function frame(state, elapsed) {
 export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules) {
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
-    const state = makeState(loadout, board);
-    if (combatRules >= damageTiebreakRules) state.damage = { red: 0, blue: 0 };
+    const usesBaseVictory = combatRules >= baseVictoryRules;
+    const state = makeState(loadout, board, usesBaseVictory);
+    if (combatRules === damageTiebreakRules) state.damage = { red: 0, blue: 0 };
     const frames = [];
+    let fallenBases = [];
     for (let elapsed = 0; elapsed <= durationMs; elapsed += battleRules.stepMs) {
       advanceBattle(state, elapsed, board, combatRules);
       frames.push(frame(state, elapsed));
+      if (usesBaseVictory) {
+        fallenBases = sides.filter((side) => !state.buildings.some((building) => building.kind === 'base' && building.side === side));
+        if (fallenBases.length) break;
+      }
     }
-    const scores = frames.at(-1).scores;
+    const last = frames.at(-1);
+    const { scores } = last;
     const terrainLead = scores.red - scores.blue;
     const damage = state.damage;
     const damageLead = damage ? damage.red - damage.blue : 0;
     const lead = terrainLead || damageLead;
-    const winner = lead === 0 ? 'draw' : lead > 0 ? 'red' : 'blue';
-    const decidedBy = terrainLead !== 0 ? 'territory' : damageLead !== 0 ? 'damage' : 'draw';
+    const winner = fallenBases.length === 1 ? enemy(fallenBases[0]) : lead === 0 ? 'draw' : lead > 0 ? 'red' : 'blue';
     const result = { winner, scores, durationMs };
-    if (damage) Object.assign(result, { damage, decidedBy });
+    if (damage) Object.assign(result, { damage, decidedBy: terrainLead !== 0 ? 'territory' : damageLead !== 0 ? 'damage' : 'draw' });
+    if (usesBaseVictory) Object.assign(result, {
+      fallenBases,
+      endedAtMs: fallenBases.length ? last.elapsed : durationMs,
+      decidedBy: fallenBases.length === 1 ? 'base' : terrainLead !== 0 ? 'territory' : 'draw',
+    });
     return { frames, result };
   } catch {
     return { frames: [], result: { winner: 'void', scores: null, durationMs } };

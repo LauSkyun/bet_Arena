@@ -115,7 +115,7 @@ test('older and reset-session requests never debit the current round', () => {
 
 test('snapshot settles exactly once and next round resets betting records', () => {
   const invested = place(newSession('session-a', start, [], 3), 'win', 'red', 30).session;
-  const time = timeline(invested.round);
+  const time = timeline(advance(invested, timeline(invested.round).lock).round);
   let session = advance(invested, time.finish);
   assert.equal(session.balance, 10018);
   assert.equal(session.round.result.net, 18);
@@ -139,5 +139,5 @@ test('catch-up freezes the right round and credit persists across rounds without
   assert.equal(resumed.previous.round, 7);
   assert.equal(resumed.round.snapshot.teams.red.system, 10);
   assert.equal(resumed.round.snapshot.teams.blue.system, 10);
-  assert.equal(view(resumed, at).remainingMs, 36_860);
+  assert.equal(view(resumed, at).remainingMs, 33_360);
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { replayFor } from './battle.mjs';
+import { damageTiebreakRules, replayFor } from './battle.mjs';
 import { advance, newSession, placeBet, saveRoundDurations, timeline, view } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
@@ -8,6 +8,7 @@ const newGame = () => newSession('timing', 0, [], 3);
 
 test('saves a separate next-round configuration and uses the locked timeline and battle duration through settlement', () => {
   const start = newGame();
+  start.round.combatRules = damageTiebreakRules;
   const original = { lock: 60_000, battle: 62_000, finish: 102_000, next: 107_000 };
   assert.deepEqual(timeline(start.round), original);
   const request = { sessionId: start.id, roundNumber: 1, side: 'red', amount: 30, requestId: 'before-close' };
@@ -22,7 +23,7 @@ test('saves a separate next-round configuration and uses the locked timeline and
   assert.deepEqual(view(inBattle, 82_000), { phase: 'battle', elapsedMs: 20_000, remainingMs: 20_000, progress: 0.5 });
   assert.equal(advance(inBattle, 101_999).round.result, null);
   const result = advance(inBattle, 102_000).round.result;
-  assert.deepEqual(result.scores, replayFor(inBattle.round.snapshot.battle, 40_000).result.scores);
+  assert.deepEqual(result.scores, replayFor(inBattle.round.snapshot.battle, 40_000, inBattle.round.board, inBattle.round.combatRules).result.scores);
   assert.equal(result.settledAt, 102_000);
   const next = advance(restored, 107_000);
   assert.equal(next.round.number, 2);

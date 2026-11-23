@@ -6,7 +6,7 @@ export function settleSession(session, battleResult, finishedAt, now) {
 
   const { roundNumber, stakes, rates, receipts } = round.snapshot;
   const stake = stakes.red + stakes.blue;
-  const { winner, scores, damage, decidedBy } = battleResult;
+  const { winner, scores, damage, decidedBy, fallenBases, endedAtMs } = battleResult;
   let credit = 0;
   if (winner === 'draw' || winner === 'void') credit = stake;
   else credit = winningCredit(stakes[winner], rates[winner]);
@@ -26,6 +26,8 @@ export function settleSession(session, battleResult, finishedAt, now) {
     settledAt: finishedAt,
     receipts,
   };
-  if (damage) Object.assign(result, { damage, decidedBy });
+  if (decidedBy) result.decidedBy = decidedBy;
+  if (damage) result.damage = damage;
+  if (fallenBases) Object.assign(result, { fallenBases, endedAtMs });
   return { ...session, balance: balanceAfter, round: { ...round, result } };
 }

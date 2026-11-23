@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
-import { reversalCombatRules, simulateBattle } from './battle.mjs';
+import { currentCombatRules, damageTiebreakRules, reversalCombatRules, simulateBattle } from './battle.mjs';
 import { advance, newSession, placeBet, sessionVersion, timeline } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
@@ -15,8 +15,9 @@ const equalStakes = () => {
   return session;
 };
 
-test('a territory tie uses effective damage to settle new rounds and preserves old payouts', () => {
+test('in-progress rounds preserve the effective-damage and older payout rules', () => {
   const session = equalStakes();
+  session.round.combatRules = damageTiebreakRules;
   const time = timeline(session.round);
   const settled = advance(session, time.finish);
   assert.deepEqual(settled.round.result.scores, { red: 28, blue: 28 });
@@ -32,7 +33,7 @@ test('a territory tie uses effective damage to settle new rounds and preserves o
   const restored = advance(migrated, time.finish);
   assert.equal(restored.round.result.winner, 'draw');
   assert.equal(restored.balance, 10000);
-  assert.equal(advance(restored, time.next).round.combatRules, session.round.combatRules);
+  assert.equal(advance(restored, time.next).round.combatRules, currentCombatRules);
 });
 
 test('current and previous exports preserve the exact inputs without private identifiers', () => {
@@ -42,7 +43,8 @@ test('current and previous exports preserve the exact inputs without private ide
   assert.deepEqual(live.bets, [
     { side: 'red', amount: 100, elapsedMs: 1000 }, { side: 'blue', amount: 100, elapsedMs: 1000 },
   ]);
-  const time = timeline(session.round);
+  const locked = advance(session, timeline(session.round).lock);
+  const time = timeline(locked.round);
   const result = advance(session, time.finish);
   const next = advance(result, time.next);
   assert.deepEqual(next.previous.battleData, battleDataFor(result.round, result.reference));

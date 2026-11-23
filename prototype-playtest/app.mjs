@@ -1,6 +1,6 @@
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
-import { countGround, frameAt, openingGround, replayFor } from './battle.mjs';
+import { baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { barracksLimit, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
@@ -16,7 +16,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-playtest.v1';
+const pendingKey = 'bet-arena.prototype.pending-base-win.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -42,7 +42,7 @@ let pendingCheck = true;
 const chosenSide = () => sideInputs.find((input) => input.checked)?.value;
 const signed = (value) => value > 0 ? `+${value}` : String(value);
 const resultLabel = (winner) => ({ void: '本轮作废', draw: '平局', red: '红队获胜', blue: '蓝队获胜' })[winner];
-const clockLabel = { bet: '下注截止', lock: '回放开始', battle: '战斗剩余', settling: '正在结算', result: '下一轮开始' };
+const clockLabel = { bet: '下注截止', lock: '回放开始', battle: '战斗时限剩余', settling: '正在结算', result: '下一轮开始' };
 const scoreLabel = ({ red, blue }) => `红方 ${red} 格　蓝方 ${blue} 格`;
 
 function describeEffects(effects) {
@@ -76,7 +76,7 @@ const board = element('board');
 let renderedLayout;
 let startingScores;
 
-function renderBoard(layout, teams, frame, effects) {
+function renderBoard(layout, teams, frame, effects, updatedOccupation) {
   if (renderedLayout !== layout) {
     renderedLayout = layout;
     const rows = boardRows(layout);
@@ -141,18 +141,19 @@ function renderBoard(layout, teams, frame, effects) {
   for (const [key, cell] of cells) {
     const [row, col] = key.split('-').map(Number);
     const initial = openingOwner(row, layout) ?? 'neutral';
-    const land = frame?.terrain[key] === 'ground' ? frame.owners[key] ?? 'neutral' : initial;
+    const claimsLand = frame && (frame.terrain[key] === 'ground' || (updatedOccupation && Object.hasOwn(frame.owners, key)));
+    const land = claimsLand ? frame.owners[key] ?? 'neutral' : initial;
     const marker = frame?.terrain[key] === 'ruins' ? { kind: 'ruins', symbol: '废', label: '废墟' } : markers.get(key);
     const units = troops.get(key);
     const troopLabel = units ? `，红方${units.red}兵，蓝方${units.blue}兵` : '';
     const troopClass = units ? ` soldier ${units.red && units.blue ? 'mixed' : units.red ? 'troop-red' : 'troop-blue'}` : '';
     const change = changes.get(key);
     const markerClass = change ? ` reinforced ${change}` : '';
-    const css = `cell ${land}${marker ? ` ${marker.kind}` : ''}${troopClass}${markerClass}`;
+    const css = `cell ${land}${marker ? ` ${marker.kind}` : ''}${claimsLand && frame.terrain[key] === 'ruins' ? ' controlled-ruins' : ''}${troopClass}${markerClass}`;
     const symbol = units ? (units.red && units.blue ? `${units.red}∶${units.blue}` : `兵${units.red || units.blue}`) : marker?.symbol ?? '';
     const changeLabel = change === 'build' ? '，新建兵营' : change === 'upgrade' ? '，刚升级' : '';
     const ownerLabel = teamName[land] ?? '中立';
-    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${marker && marker.kind !== 'exit' ? '' : `，${ownerLabel}领地`}${troopLabel}${changeLabel}`;
+    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
     if (cell.textContent !== symbol) cell.textContent = symbol;
     if (cell.title !== label) {
@@ -224,7 +225,7 @@ function render(session, now) {
   const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules) : null;
   const frame = replay ? frameAt(replay, stage.elapsedMs ?? battleMs) : null;
   const latestEffects = stage.phase === 'bet' ? round.lastEffects : [];
-  renderBoard(round.board, teams, frame, latestEffects);
+  renderBoard(round.board, teams, frame, latestEffects, round.combatRules >= baseVictoryRules);
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
   const rates = round.snapshot ? round.snapshot.rates : returnsFor(teams);
@@ -242,8 +243,11 @@ function render(session, now) {
     element('result-score').textContent = scores ? `最终占格 · ${scoreLabel(scores)}` : '本轮无最终格数';
     const damage = round.result.damage;
     const reason = element('result-reason');
-    reason.hidden = !damage || scores?.red !== scores?.blue;
-    if (!reason.hidden) reason.textContent = `占格相同，比较有效伤害 · 红 ${damage.red}／蓝 ${damage.blue}`;
+    const fallen = round.result.fallenBases ?? [];
+    reason.hidden = !fallen.length && (!damage || scores?.red !== scores?.blue);
+    if (fallen.length === 1) reason.textContent = `${teamName[fallen[0]]}主基地被摧毁`;
+    else if (fallen.length === 2) reason.textContent = '双方主基地同拍被摧毁，按占格判定';
+    else if (!reason.hidden) reason.textContent = `占格相同，比较有效伤害 · 红 ${damage.red}／蓝 ${damage.blue}`;
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;
