@@ -34,6 +34,7 @@ for (const [name, winner, support, stake, credit, balance] of [
 
 test('two confirmed contributions settle from the sealed amount when returning after playback', () => {
   const start = newSession('two-bets', 0, [], 3);
+  start.round.threshold = 10;
   const ticket = { sessionId: start.id, roundNumber: 1, side: 'red' };
   const first = placeBet(start, 1, { ...ticket, requestId: 'first', amount: 10 }).session;
   const second = placeBet(first, 2, { ...ticket, requestId: 'second', amount: 20 }).session;

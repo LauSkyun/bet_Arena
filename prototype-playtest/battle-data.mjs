@@ -11,6 +11,7 @@ export function battleDataFor(round, reference) {
   const stakes = snapshot?.stakes ?? stakesFor(teams);
   return {
     number, board, combatRules, durations, fireRevision, profile,
+    threshold: round.threshold,
     sealed: Boolean(snapshot),
     stakes,
     rates: snapshot ? snapshot.rates : returnsFor(teams),

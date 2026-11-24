@@ -3,7 +3,7 @@ import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { battleRules, fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
-import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
+import { findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
@@ -18,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-building-health.v1';
+const pendingKey = 'bet-arena.prototype.pending-bet-threshold.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -30,6 +30,7 @@ const saveBattleData = element('save-battle-data');
 const copyPreviousData = element('copy-previous-data');
 const savePreviousData = element('save-previous-data');
 const battleDataFeedback = element('battle-data-feedback');
+const thresholdInput = element('bet-threshold');
 const betSeconds = element('bet-seconds');
 const battleSeconds = element('battle-seconds');
 const timingSave = element('timing-save');
@@ -61,7 +62,7 @@ function receiptMessage(receipt) {
   return changes ? `${confirmed}${changes}。` : confirmed;
 }
 
-function renderTeam(side, team, phase, percent, layout) {
+function renderTeam(side, team, phase, percent, layout, stepSize) {
   element(`${side}-rate`).textContent = percent === null ? '—' : `${percent}%`;
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
@@ -69,7 +70,7 @@ function renderTeam(side, team, phase, percent, layout) {
   const barracks = team.roster.barracks.map(({ unit, level, at }) => `〔${barracksLabel(unit.name)}〕${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
   element(`${side}-layout`).textContent = hasExpansion(layout) ? `兵营 ${barracks.length}／${barracksLimit}${barracks.length ? ` · ${barracks.join('、')}` : ''}`
     : barracks.join('、') || '尚无兵营';
-  const left = betting.threshold - team.total % betting.threshold;
+  const left = stepSize - team.total % stepSize;
   const threshold = element(`${side}-threshold`);
   threshold.hidden = phase !== 'bet';
   threshold.textContent = isFull(team, layout) ? '强化已满' : `距下次强化 ${left} 点`;
@@ -256,14 +257,15 @@ function renderControls(session, phase) {
 
 function renderTiming(session) {
   const describe = ({ betMs, battleMs }) => `下注 ${betMs / 1000} 秒 · 战斗 ${battleMs / 1000} 秒`;
-  element('timing-current').textContent = `本轮　${describe(session.round.durations)} · ${profiles[session.round.profile ?? arenaProfile]}`;
-  element('timing-next').textContent = `下一轮　${describe(session.nextDurations)} · ${profiles[session.nextProfile ?? arenaProfile]}`;
+  element('timing-current').textContent = `本轮　${describe(session.round.durations)} · ${profiles[session.round.profile ?? arenaProfile]} · 每 ${session.round.threshold} 点强化`;
+  element('timing-next').textContent = `下一轮　${describe(session.nextDurations)} · ${profiles[session.nextProfile ?? arenaProfile]} · 每 ${session.nextThreshold} 点强化`;
   if (!timingDraft) {
+    thresholdInput.value = String(session.nextThreshold);
     battleProfile.value = session.nextProfile ?? arenaProfile;
     betSeconds.value = String(session.nextDurations.betMs / 1000);
     battleSeconds.value = String(session.nextDurations.battleMs / 1000);
   }
-  for (const control of [betSeconds, battleSeconds, timingSave, battleProfile]) control.disabled = savingTiming;
+  for (const control of [betSeconds, battleSeconds, timingSave, battleProfile, thresholdInput]) control.disabled = savingTiming;
 }
 
 function render(session, now) {
@@ -307,7 +309,7 @@ function render(session, now) {
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
   const rates = round.snapshot ? round.snapshot.rates : returnsFor(teams);
-  for (const side of sides) renderTeam(side, teams[side], stage.phase, rates[side], round.board);
+  for (const side of sides) renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold);
   const effects = element('latest-effects');
   effects.hidden = !latestEffects.length;
   if (latestEffects.length) {
@@ -441,12 +443,12 @@ timingForm.addEventListener('submit', async (event) => {
   savingTiming = true;
   renderTiming(displayed.session);
   try {
-    const saved = await updateSession((session, now) => saveRoundDurations(session, now, bet, battle, battleProfile.value));
+    const saved = await updateSession((session, now) => saveRoundDurations(session, now, bet, battle, battleProfile.value, thresholdInput.valueAsNumber));
     if (!saved.error) timingDraft = false;
     render(saved.session, saved.now);
     element('timing-feedback').textContent = saved.error ?? '已保存，从下一轮生效。';
   } catch {
-    element('timing-feedback').textContent = '时长设置未能保存，请再试一次。';
+    element('timing-feedback').textContent = '下一轮设置未能保存，请再试一次。';
   } finally {
     savingTiming = false;
     renderTiming(displayed.session);

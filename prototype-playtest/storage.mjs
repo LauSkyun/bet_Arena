@@ -1,10 +1,10 @@
 import { previousCombatRules } from './battle.mjs';
 import { legacyBoard } from './roster.mjs';
 import { defaultDurations, legacyDurations } from './timing.mjs';
-import { stakesFor } from './betting.mjs';
+import { betting, stakesFor } from './betting.mjs';
 import { advance, newSession, sessionVersion } from './round.mjs';
 
-const sessionKey = 'bet-arena.prototype.building-health.v1';
+const sessionKey = 'bet-arena.prototype.bet-threshold.v1';
 
 function legacyRates(red, blue) {
   return { red: red > 0 ? 200 : null, blue: blue > 0 ? 200 : null };
@@ -19,8 +19,10 @@ function migrateResult(result, rates) {
 
 export function upgradeSession(saved) {
   if (!saved || saved.version === sessionVersion) return saved;
+  // Sessions through v12 used a fixed 10-point threshold for every wager in the open round.
+  saved = { ...saved, round: { ...saved.round, threshold: 10 }, nextThreshold: betting.threshold };
   // Older tabs reject this version before they can settle a round with newer rules.
-  if (saved.version === 6 || saved.version === 7 || saved.version === 8 || saved.version === 9 || saved.version === 10 || saved.version === 11) return { ...saved, version: sessionVersion };
+  if (Number.isInteger(saved.version) && saved.version >= 6 && saved.version <= 12) return { ...saved, version: sessionVersion };
   if (saved.version === 5) return { ...saved, version: sessionVersion, round: { ...saved.round, combatRules: previousCombatRules } };
   if (saved.version === 4) return { ...saved, version: sessionVersion, round: { ...saved.round, board: legacyBoard, combatRules: previousCombatRules } };
   if (saved.version === 3) return { ...saved, version: sessionVersion, nextDurations: defaultDurations,
@@ -52,5 +54,5 @@ export function updateSession(action = null) {
 }
 
 export function resetSession() {
-  return updateSession((session, now) => ({ session: newSession(crypto.randomUUID(), now, undefined, undefined, session.nextDurations, undefined, session.nextProfile) }));
+  return updateSession((session, now) => ({ session: newSession(crypto.randomUUID(), now, undefined, undefined, session.nextDurations, undefined, session.nextProfile, session.nextThreshold) }));
 }

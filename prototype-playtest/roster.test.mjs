@@ -110,7 +110,7 @@ test('cross-theme barracks belong to their original side and get route and comba
   }
   assert.deepEqual([...allOrigins].sort(), [...themes].sort());
   const session = newSession('test', 0, [], 73);
-  const charged = placeBet(session, 10, { sessionId: 'test', requestId: 'one', roundNumber: 1, side: 'red', amount: 30 }).session;
+  const charged = placeBet(session, 10, { sessionId: 'test', requestId: 'one', roundNumber: 1, side: 'red', amount: 300 }).session;
   const locked = advance(charged, timeline(charged.round).lock);
   const { finish } = timeline(locked.round);
   assert.deepEqual(locked.round.snapshot.battle.red.startingUnits, []);
@@ -121,6 +121,7 @@ test('cross-theme barracks belong to their original side and get route and comba
 test('all plots and levels can be filled through threshold processing before a valid player bet', () => {
   const reference = [{ elapsed: 100, side: 'red', amount: 450 }];
   const session = newSession('full-fixture', 0, reference, 73);
+  session.round.threshold = 10;
   const full = advance(session, 100);
   const { roster } = full.round.teams.red;
   assert.equal(roster.barracks.length, 15);
