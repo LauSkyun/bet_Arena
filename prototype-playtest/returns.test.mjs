@@ -29,9 +29,10 @@ test('rates include reference bets, then stay fixed across storage, deadline and
   assert.deepEqual(locked.round.snapshot.rates, { red: 420, blue: 110 });
   assert.deepEqual(locked.round.snapshot.stakes, { red: 100, blue: 500 });
   assert.deepEqual([locked.round.snapshot.teams.red.total, locked.round.snapshot.teams.blue.total], [110, 510]);
+  const finish = timeline(locked.round).finish;
   const restored = JSON.parse(JSON.stringify(locked));
   assert.equal(placeBet(restored, time.battle, request('blue', 500)).replayed, true);
-  assert.deepEqual(advance(restored, time.finish).round.result.rates, locked.round.snapshot.rates);
-  const settled = advance(restored, time.finish);
-  assert.equal(advance(settled, time.finish + 1), settled);
+  assert.deepEqual(advance(restored, finish).round.result.rates, locked.round.snapshot.rates);
+  const settled = advance(restored, finish);
+  assert.equal(advance(settled, finish + 1), settled);
 });

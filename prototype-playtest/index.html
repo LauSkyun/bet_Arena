@@ -24,13 +24,14 @@
       <p id="battle-data-feedback" class="notice" role="status"></p>
     </details>
     <details id="timing-settings" class="timing-settings">
-      <summary>下一轮时长设置</summary>
+      <summary>下一轮设置</summary>
       <p id="timing-current"></p>
       <p id="timing-next"></p>
       <form id="timing-form" class="timing-form" novalidate>
         <label>下注时长（秒）<input id="bet-seconds" type="number" inputmode="numeric" min="1" step="1" required disabled></label>
         <label>战斗时长（秒）<input id="battle-seconds" type="number" inputmode="numeric" min="1" step="1" required disabled></label>
-        <button id="timing-save" type="submit" disabled>保存时长</button>
+        <label>数值配置<select id="battle-profile" disabled></select></label>
+        <button id="timing-save" type="submit" disabled>保存设置</button>
       </form>
       <p id="timing-feedback" class="notice" role="status"></p>
     </details>

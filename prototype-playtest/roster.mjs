@@ -1,3 +1,4 @@
+import { profileUnit } from './profiles.mjs';
 export const themes = Object.freeze(['人族', '神族', '虫族']);
 export const currentBoard = 'hex-14';
 export const squareExpansionBoard = 'square-14';
@@ -157,7 +158,7 @@ export function battleLoadout(roster, board) {
   };
 }
 
-export function enhanceRoster(roster, board) {
+export function enhanceRoster(roster, board, profile) {
   const builds = validBuilds(roster, board);
   const upgrades = roster.barracks.filter(({ level }) => level < maxLevel);
   if (!builds.length && !upgrades.length) return { roster, label: '强化已满，未新增战力' };
@@ -171,7 +172,10 @@ export function enhanceRoster(roster, board) {
   const build = builds.length > 0 && (upgrades.length === 0 || draw() < 0.5);
   if (build) {
     const { at, exit, exits } = builds[Math.floor(draw() * builds.length)];
-    const unit = drawUnit(roster.theme, draw(), draw());
+    const themeRoll = draw();
+    const tierRoll = draw();
+    const drawn = drawUnit(roster.theme, themeRoll, tierRoll);
+    const unit = profileUnit(profile, drawn);
     const entry = { at, exit, unit, level: 1, side: roster.side };
     const barracks = exits ? roster.barracks.map((built) => ({ ...built, exit: exits.get(keyAt(built.at)) })) : roster.barracks;
     return {

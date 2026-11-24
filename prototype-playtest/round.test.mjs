@@ -139,5 +139,11 @@ test('catch-up freezes the right round and credit persists across rounds without
   assert.equal(resumed.previous.round, 7);
   assert.equal(resumed.round.snapshot.teams.red.system, 10);
   assert.equal(resumed.round.snapshot.teams.blue.system, 10);
-  assert.equal(view(resumed, at).remainingMs, 33_360);
+  let stepped = first;
+  for (let i = 0; i < 7; i++) {
+    const locked = advance(stepped, timeline(stepped.round).lock);
+    stepped = advance(locked, timeline(locked.round).next);
+  }
+  assert.deepEqual(resumed, advance(stepped, at));
+  assert.equal(view(resumed, at).remainingMs, timeline(stepped.round).battle + stepped.round.durations.battleMs - at);
 });

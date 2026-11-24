@@ -25,7 +25,7 @@ function invest(round, side, amount, source) {
   const effects = [];
   const lastStep = Math.floor(total / betting.threshold);
   for (let step = Math.floor(team.total / betting.threshold) + 1; step <= lastStep; step++) {
-    const result = enhanceRoster(roster, round.board);
+    const result = enhanceRoster(roster, round.board, round.profile);
     roster = result.roster;
     effects.push({ side, level: step, label: result.label, at: result.at ?? null, kind: result.kind ?? null });
     if (result.kind == null) {

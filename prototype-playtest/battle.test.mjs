@@ -151,7 +151,7 @@ test('the recorded diagonal pursuit gets into range while older rounds retain th
   const restored = upgradeSession(old);
   const replay = (round) => replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules);
   const before = replay(restored.round);
-  const fixed = replay(round);
+  const fixed = replay({ ...round, combatRules: baseVictoryRules });
   const positions = (frame) => frame.units.map(({ id, at }) => [id, at]);
   assert.deepEqual(positions(frameAt(before, 37_500)), positions(frameAt(before, 38_500)));
   assert.notDeepEqual(positions(frameAt(before, 37_500)), positions(frameAt(before, 38_000)));
@@ -203,6 +203,7 @@ test('single-team survivors take a contested tile and a ruin separately from sco
 
 test('main base destruction settles at the actual tick and starts the next round five seconds later', () => {
   const session = newSession('base-win', 0, undefined, 10);
+  session.round.combatRules = baseVictoryRules;
   const paid = placeBet(session, 1, { sessionId: session.id, roundNumber: 1, requestId: 'bet', side: 'red', amount: 200 }).session;
   const sealed = advance(paid, 60_000);
   const time = timeline(sealed.round);

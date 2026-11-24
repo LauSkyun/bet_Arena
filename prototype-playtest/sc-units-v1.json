@@ -1,0 +1,29 @@
+{
+  "轻型": {
+    "name": "跳虫",
+    "hp": 75,
+    "damage": 6,
+    "range": 1,
+    "attacksPerSecond": 2,
+    "productionSeconds": 3,
+    "spawnCount": 2
+  },
+  "中型": {
+    "name": "狂热者",
+    "hp": 100,
+    "damage": 24,
+    "range": 1,
+    "attacksPerSecond": 1,
+    "productionSeconds": 4,
+    "spawnCount": 1
+  },
+  "重型": {
+    "name": "机枪兵",
+    "hp": 100,
+    "damage": 9,
+    "range": 5,
+    "attacksPerSecond": 1.6,
+    "productionSeconds": 3,
+    "spawnCount": 1
+  }
+}

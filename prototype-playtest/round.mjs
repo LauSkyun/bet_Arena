@@ -1,3 +1,4 @@
+import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor } from './battle-data.mjs';
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
@@ -5,15 +6,15 @@ import { settleSession } from './settlement.mjs';
 import { baseVictoryRules, currentCombatRules, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 8;
+export const sessionVersion = 9;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
 const catchUpBatch = 32;
 
-export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard) {
-  return { version: sessionVersion, id, seed, reference, nextDurations: durations, balance: betting.initialBalance,
-    round: newRound(1, now, seed, durations, board), previous: null };
+export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile) {
+  return { version: sessionVersion, id, seed, reference, nextDurations: durations, nextProfile: profile, balance: betting.initialBalance,
+    round: newRound(1, now, seed, durations, board, profile), previous: null };
 }
 
 function seedFor(seed, number, side) {
@@ -23,10 +24,11 @@ function seedFor(seed, number, side) {
   return (value ^ (value >>> 15)) >>> 0;
 }
 
-function newRound(number, startedAt, seed, durations, board = currentBoard) {
+function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile) {
   return {
     number,
     board,
+    profile,
     combatRules: currentCombatRules,
     startedAt,
     durations,
@@ -63,7 +65,7 @@ export function advance(session, now) {
     if (now < time.next) break;
 
     lastFinished = session.round;
-    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations) };
+    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile) };
   }
   if (!lastFinished) return session;
   const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };
@@ -91,10 +93,11 @@ export function placeBet(session, now, request) {
   return confirmBet(current, now, request);
 }
 
-export function saveRoundDurations(session, now, betSeconds, battleSeconds) {
+export function saveRoundDurations(session, now, betSeconds, battleSeconds, profile = session.nextProfile ?? arenaProfile) {
   const current = advance(session, now);
   if (now >= timeline(current.round).next) return { session: current, error: '正在恢复轮次，请稍后保存。' };
   const durations = durationsFromSeconds(betSeconds, battleSeconds);
   if (!durations) return { session: current, error: `下注和战斗时长均须为 1–${secondsLimit} 秒的整数。` };
-  return { session: { ...current, nextDurations: durations } };
+  if (!Object.hasOwn(profiles, profile)) return { session: current, error: '请选择已支持的数值配置。' };
+  return { session: { ...current, nextDurations: durations, nextProfile: profile } };
 }

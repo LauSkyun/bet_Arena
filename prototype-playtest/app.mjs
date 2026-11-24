@@ -1,3 +1,4 @@
+import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
@@ -16,7 +17,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-playtest.v1';
+const pendingKey = 'bet-arena.prototype.pending-roles-sc.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -31,6 +32,8 @@ const battleDataFeedback = element('battle-data-feedback');
 const betSeconds = element('bet-seconds');
 const battleSeconds = element('battle-seconds');
 const timingSave = element('timing-save');
+const battleProfile = element('battle-profile');
+for (const [id, label] of Object.entries(profiles)) battleProfile.add(new Option(label, id));
 let timingDraft = false;
 let savingTiming = false;
 for (const input of [betSeconds, battleSeconds]) input.max = String(secondsLimit);
@@ -119,8 +122,8 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
         const reserved = markers.get(exitKey)?.kind === 'plot';
         markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
       }
-      const { name, tier, hp, damage, limit } = unitStats(barracks);
-      const label = `${teamName[side]}${name}兵营，${level}级，生命${hp}，单次伤害${damage}，存活上限${limit}`;
+      const { name, tier, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
+      const label = `${teamName[side]}${name}兵营，${level}级，生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
       markers.set(keyAt(at), { kind: 'barracks', symbol: `${tier[0]}${level}`, label });
     }
   }
@@ -180,13 +183,14 @@ function renderControls(session, phase) {
 
 function renderTiming(session) {
   const describe = ({ betMs, battleMs }) => `下注 ${betMs / 1000} 秒 · 战斗 ${battleMs / 1000} 秒`;
-  element('timing-current').textContent = `本轮　${describe(session.round.durations)}`;
-  element('timing-next').textContent = `下一轮　${describe(session.nextDurations)}`;
+  element('timing-current').textContent = `本轮　${describe(session.round.durations)} · ${profiles[session.round.profile ?? arenaProfile]}`;
+  element('timing-next').textContent = `下一轮　${describe(session.nextDurations)} · ${profiles[session.nextProfile ?? arenaProfile]}`;
   if (!timingDraft) {
+    battleProfile.value = session.nextProfile ?? arenaProfile;
     betSeconds.value = String(session.nextDurations.betMs / 1000);
     battleSeconds.value = String(session.nextDurations.battleMs / 1000);
   }
-  for (const control of [betSeconds, battleSeconds, timingSave]) control.disabled = savingTiming;
+  for (const control of [betSeconds, battleSeconds, timingSave, battleProfile]) control.disabled = savingTiming;
 }
 
 function render(session, now) {
@@ -363,7 +367,7 @@ timingForm.addEventListener('submit', async (event) => {
   savingTiming = true;
   renderTiming(displayed.session);
   try {
-    const saved = await updateSession((session, now) => saveRoundDurations(session, now, bet, battle));
+    const saved = await updateSession((session, now) => saveRoundDurations(session, now, bet, battle, battleProfile.value));
     if (!saved.error) timingDraft = false;
     render(saved.session, saved.now);
     element('timing-feedback').textContent = saved.error ?? '已保存，从下一轮生效。';
