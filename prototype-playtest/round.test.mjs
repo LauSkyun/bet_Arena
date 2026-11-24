@@ -56,10 +56,10 @@ test('one request id is charged once and a conflicting resubmission cannot chang
 
 test('several thresholds apply in order, using the layout left by each effect', () => {
   const session = fresh();
-  const once = place(session, 'once', 'red', 30);
+  const once = place(session, 'once', 'red', 300);
   assert.deepEqual(once.receipt.effects.map((effect) => effect.level), [1, 2, 3]);
   assert.ok(once.session.round.teams.red.roster.barracks.length >= 1);
-  const split = place(place(session, 'first').session, 'second', 'red', 20);
+  const split = place(place(session, 'first', 'red', 100).session, 'second', 'red', 200);
   assert.deepEqual(split.session.round.teams, once.session.round.teams);
   assert.equal(split.session.balance, once.session.balance);
 });
@@ -70,13 +70,13 @@ test('scheduled red and blue reference bets apply once and share the player thre
   session = advance(session, start + 4000);
   assert.equal(session.round.teams.red.system, 10);
   assert.equal(session.balance, 10000);
-  const player = place(session, 'contribution', 'red', 10, start + 5000);
-  assert.equal(player.receipt.effects[0].level, 2);
+  const player = place(session, 'contribution', 'red', 90, start + 5000);
+  assert.equal(player.receipt.effects[0].level, 1);
   session = advance(player.session, start + 8000);
   const { total, player: points, system } = session.round.teams.red;
-  assert.deepEqual({ total, points, system }, { total: 20, points: 10, system: 10 });
+  assert.deepEqual({ total, points, system }, { total: 100, points: 90, system: 10 });
   assert.equal(session.round.teams.blue.system, 10);
-  assert.equal(session.balance, 9990);
+  assert.equal(session.balance, 9910);
   assert.equal(advance(session, start + 8200), session);
 });
 
@@ -114,7 +114,9 @@ test('older and reset-session requests never debit the current round', () => {
 });
 
 test('snapshot settles exactly once and next round resets betting records', () => {
-  const invested = place(newSession('session-a', start, [], 3), 'win', 'red', 30).session;
+  const fixture = newSession('session-a', start, [], 3);
+  fixture.round.threshold = 10;
+  const invested = place(fixture, 'win', 'red', 30).session;
   const time = timeline(advance(invested, timeline(invested.round).lock).round);
   let session = advance(invested, time.finish);
   assert.equal(session.balance, 10018);

@@ -120,6 +120,7 @@ test('an invalid battle returns a void result and settlement refunds the stake',
 
 test('a real sealed round transfers each captured scoring tile and settles the same final battle', () => {
   const session = newSession('capture', 0, undefined, 2, undefined, priorBoard);
+  session.round.threshold = 10;
   session.round.combatRules = damageTiebreakRules;
   const red = placeBet(session, 1_000, { sessionId: session.id, roundNumber: 1, side: 'red', amount: 340, requestId: 'red' }).session;
   const both = placeBet(red, 2_000, { sessionId: session.id, roundNumber: 1, side: 'blue', amount: 60, requestId: 'blue' }).session;
@@ -142,6 +143,7 @@ test('a real sealed round transfers each captured scoring tile and settles the s
 
 test('the recorded diagonal pursuit gets into range while older rounds retain their replay', () => {
   const start = newSession('recorded-reversal', 0, undefined, 0, undefined, priorBoard);
+  start.round.threshold = 10;
   start.round.combatRules = baseVictoryRules;
   const times = timeline(start.round);
   const { round } = advance(start, times.lock);
@@ -204,6 +206,7 @@ test('single-team survivors take a contested tile and a ruin separately from sco
 
 test('main base destruction settles at the actual tick and starts the next round five seconds later', () => {
   const session = newSession('base-win', 0, undefined, 10);
+  session.round.threshold = 10;
   session.round.combatRules = baseVictoryRules;
   const paid = placeBet(session, 1, { sessionId: session.id, roundNumber: 1, requestId: 'bet', side: 'red', amount: 200 }).session;
   const sealed = advance(paid, 60_000);

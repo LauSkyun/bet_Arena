@@ -1,7 +1,7 @@
 import { returnsFor } from './returns.mjs';
 import { battleLoadout, enhanceRoster, isRosterFull, newRoster } from './roster.mjs';
 
-export const betting = Object.freeze({ initialBalance: 10_000, threshold: 10 });
+export const betting = Object.freeze({ initialBalance: 10_000, threshold: 100 });
 export const defaultReference = Object.freeze([
   Object.freeze({ elapsed: 4_000, side: 'red', amount: 10 }),
   Object.freeze({ elapsed: 8_000, side: 'blue', amount: 10 }),
@@ -23,8 +23,8 @@ function invest(round, side, amount, source) {
   const total = team.total + amount;
   let roster = team.roster;
   const effects = [];
-  const lastStep = Math.floor(total / betting.threshold);
-  for (let step = Math.floor(team.total / betting.threshold) + 1; step <= lastStep; step++) {
+  const lastStep = Math.floor(total / round.threshold);
+  for (let step = Math.floor(team.total / round.threshold) + 1; step <= lastStep; step++) {
     const result = enhanceRoster(roster, round.board, round.profile);
     roster = result.roster;
     effects.push({ side, level: step, label: result.label, at: result.at ?? null, kind: result.kind ?? null });

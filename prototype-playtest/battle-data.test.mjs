@@ -7,6 +7,7 @@ import { upgradeSession } from './storage.mjs';
 
 const equalStakes = () => {
   let session = newSession('private-session-id', 1234, undefined, 0);
+  session.round.threshold = 10; // Recorded pre-update battle.
   for (const side of ['red', 'blue']) {
     session = placeBet(session, 2234, {
       sessionId: session.id, roundNumber: 1, side, amount: 100, requestId: `private-id-${side}`,
@@ -66,7 +67,7 @@ test('new rounds field only barracks production and an empty battlefield settles
   assert.equal(result.balance, 10000);
   for (const profile of ['arena-v1', 'sc-sample-v1', 'sc-range-v1']) {
     const session = newSession('s', 0, [], 4, undefined, undefined, profile);
-    const paid = placeBet(session, 1, { sessionId: 's', requestId: 'bet', roundNumber: 1, side: 'red', amount: 10 }).session;
+    const paid = placeBet(session, 1, { sessionId: 's', requestId: 'bet', roundNumber: 1, side: 'red', amount: 100 }).session;
     const open = battleDataFor(paid.round, []);
     const sealed = advance(paid, timeline(paid.round).lock);
     const data = battleDataFor(sealed.round, []);

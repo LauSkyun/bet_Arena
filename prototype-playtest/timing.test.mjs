@@ -60,3 +60,28 @@ test('invalid input preserves the prior settings and legacy sessions keep curren
   assert.equal(next.balance, 9_930);
   assert.deepEqual(next.round.durations, { betMs: 60_000, battleMs: 40_000 });
 });
+
+test('a threshold edit applies on rollover only, including after restore of a v12 round', () => {
+  const start = newGame();
+  assert.equal(start.round.threshold, 100);
+  const saved = saveRoundDurations(start, 0, 60, 40, undefined, 25).session;
+  for (const amount of [0, -1, 1.5, NaN, Infinity]) {
+    assert.equal(saveRoundDurations(saved, 0, 60, 40, undefined, amount).session, saved);
+  }
+  const ticket = { sessionId: saved.id, roundNumber: 1, requestId: 'a', side: 'red', amount: 99 };
+  const first = placeBet(saved, 1, ticket);
+  assert.equal(first.receipt.effects.length, 0);
+  const paid = placeBet(first.session, 2, { ...ticket, requestId: 'b', amount: 201 });
+  assert.equal(paid.receipt.effects.length, 3);
+  const sealed = advance(paid.session, timeline(paid.session.round).lock);
+  const next = advance(JSON.parse(JSON.stringify(sealed)), timeline(sealed.round).next);
+  assert.equal(next.previous.battleData.threshold, 100);
+  assert.equal(next.round.threshold, 25);
+  assert.equal(placeBet(next, next.round.startedAt, { ...ticket, roundNumber: 2, amount: 50 }).receipt.effects.length, 2);
+  const legacy = { ...start, version: 12 };
+  delete legacy.round.threshold;
+  delete legacy.nextThreshold;
+  const restored = upgradeSession(legacy);
+  assert.equal(placeBet(restored, 1, { ...ticket, amount: 10 }).receipt.effects.length, 1);
+  assert.equal(advance(restored, timeline(restored.round).next).round.threshold, 100);
+});
