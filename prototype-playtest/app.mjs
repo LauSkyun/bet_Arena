@@ -1,9 +1,10 @@
+import { drawShots, glyphFor, troopsByTile, unitName } from './board-display.mjs';
 import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
-import { barracksLimit, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
+import { barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
 import { resetSession, updateSession } from './storage.mjs';
@@ -17,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-roles-sc.v1';
+const pendingKey = 'bet-arena.prototype.pending-board-units.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -65,7 +66,7 @@ function renderTeam(side, team, phase, percent, layout) {
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
   element(`${side}-system`).textContent = `系统投入 ${team.system} 点`;
-  const barracks = team.roster.barracks.map(({ unit, level, at }) => `${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
+  const barracks = team.roster.barracks.map(({ unit, level, at }) => `〔${glyphFor(unit.name)}〕${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
   element(`${side}-layout`).textContent = hasExpansion(layout) ? `兵营 ${barracks.length}／${barracksLimit}${barracks.length ? ` · ${barracks.join('、')}` : ''}`
     : barracks.join('、') || '尚无兵营';
   const left = betting.threshold - team.total % betting.threshold;
@@ -76,8 +77,21 @@ function renderTeam(side, team, phase, percent, layout) {
 
 const cells = new Map();
 const board = element('board');
-let renderedLayout;
+let renderedLayout = null;
 let startingScores;
+let selectedTile = null;
+let lastFrame;
+let lastShots = [];
+const canvas = element('shots');
+const inspector = element('tile-inspector');
+const crowded = element('crowded-tiles');
+new ResizeObserver(() => drawShots(canvas, lastShots, cells)).observe(board);
+board.addEventListener('click', (event) => {
+  const key = event.target.closest('[data-at]')?.dataset.at;
+  if (!key || !displayed) return;
+  selectedTile = selectedTile === key ? null : key;
+  render(displayed.session, displayed.now);
+});
 
 function renderBoard(layout, teams, frame, effects, updatedOccupation) {
   if (renderedLayout !== layout) {
@@ -90,14 +104,14 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
     const tiles = document.createDocumentFragment();
     for (let row = 1; row <= rows; row++) {
       for (let col = 1; col <= boardColumns; col++) {
-        const cell = document.createElement('span');
+        const cell = document.createElement('button');
+        cell.type = 'button';
         const key = keyAt([row, col]);
         cell.dataset.at = key;
         if (hex) {
           cell.style.gridColumn = `${2 * col - 1 + row % 2} / span 2`;
           cell.style.gridRow = String(row);
         }
-        cell.setAttribute('role', 'img');
         cells.set(key, cell);
         tiles.append(cell);
       }
@@ -122,47 +136,82 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
         const reserved = markers.get(exitKey)?.kind === 'plot';
         markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
       }
-      const { name, tier, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
-      const label = `${teamName[side]}${name}兵营，${level}级，生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
-      markers.set(keyAt(at), { kind: 'barracks', symbol: `${tier[0]}${level}`, label });
+      const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
+      const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
+      markers.set(keyAt(at), { kind: 'barracks', symbol: `${glyphFor(name)}营`, range, side, label });
     }
   }
-  const troops = new Map();
-  if (frame) {
-    for (const { at, kind, side, hp } of frame.buildings) {
-      const key = keyAt(at);
-      const marker = markers.get(key);
-      markers.set(key, { ...marker, label: `${marker?.label ?? teamName[side] + kind}，建筑生命${hp}` });
-    }
-    for (const { at, side } of frame.units) {
-      const key = keyAt(at);
-      const count = troops.get(key) ?? { red: 0, blue: 0 };
-      count[side]++;
-      troops.set(key, count);
-    }
+  const troops = troopsByTile(frame?.units ?? []);
+  for (const { at, kind, side, hp } of frame?.buildings ?? []) {
+    const key = keyAt(at);
+    const marker = markers.get(key);
+    markers.set(key, { ...marker, label: `${marker?.label ?? teamName[side] + kind}，建筑生命${hp}` });
   }
+  const selectedGroups = [...(troops.get(selectedTile)?.values() ?? [])];
+  const selectedMarker = frame?.terrain[selectedTile] === 'ruins' ? null : markers.get(selectedTile);
+  const maxRange = Math.max(selectedMarker?.range ?? 0, ...selectedGroups.map(group => group.range));
+  const crowdedTiles = [];
+  const selectedAt = selectedTile?.split('-').map(Number);
+  const shots = frame?.shots ?? [];
   for (const [key, cell] of cells) {
     const [row, col] = key.split('-').map(Number);
     const initial = openingOwner(row, layout) ?? 'neutral';
     const claimsLand = frame && (frame.terrain[key] === 'ground' || (updatedOccupation && Object.hasOwn(frame.owners, key)));
     const land = claimsLand ? frame.owners[key] ?? 'neutral' : initial;
     const marker = frame?.terrain[key] === 'ruins' ? { kind: 'ruins', symbol: '废', label: '废墟' } : markers.get(key);
-    const units = troops.get(key);
-    const troopLabel = units ? `，红方${units.red}兵，蓝方${units.blue}兵` : '';
-    const troopClass = units ? ` soldier ${units.red && units.blue ? 'mixed' : units.red ? 'troop-red' : 'troop-blue'}` : '';
+    const groups = [...(troops.get(key)?.values() ?? [])];
+    const troopLabel = groups.map(g => `${teamName[g.side]}${g.name}×${g.count}（射程${g.range}格）`).join('、');
+    const teamsHere = new Set(groups.map(g => g.side));
+    const troopClass = groups.length ? ` soldier ${teamsHere.size > 1 ? 'mixed' : 'troop-' + groups[0].side}` : '';
+    const gap = selectedAt ? distance(selectedAt, [row, col], layout) : Infinity;
+    const inRange = maxRange > 0 && gap <= maxRange;
+    if (groups.length > 4) crowdedTiles.push(`${row}行${col}列　${troopLabel}`);
     const change = changes.get(key);
-    const markerClass = change ? ` reinforced ${change}` : '';
-    const css = `cell ${land}${marker ? ` ${marker.kind}` : ''}${claimsLand && frame.terrain[key] === 'ruins' ? ' controlled-ruins' : ''}${troopClass}${markerClass}`;
-    const symbol = units ? (units.red && units.blue ? `${units.red}∶${units.blue}` : `兵${units.red || units.blue}`) : marker?.symbol ?? '';
+    const changeLabelClass = change ? ` reinforced ${change}` : '';
+    const css = `cell ${land}${marker ? ` ${marker.kind}` : ''}${claimsLand && frame.terrain[key] === 'ruins' ? ' controlled-ruins' : ''}${troopClass}${changeLabelClass}${inRange ? ' in-range' : ''}${selectedTile === key ? ' selected' : ''}`;
     const changeLabel = change === 'build' ? '，新建兵营' : change === 'upgrade' ? '，刚升级' : '';
     const ownerLabel = teamName[land] ?? '中立';
-    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel}${changeLabel}`;
+    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
-    if (cell.textContent !== symbol) cell.textContent = symbol;
+    const signature = troopLabel || marker?.symbol || '';
+    if (cell.dataset.content !== signature) {
+      cell.dataset.content = signature;
+      cell.replaceChildren();
+      if (groups.length) {
+        const chips = document.createElement('span');
+        chips.className = 'unit-chips';
+        for (const group of groups.length > 4 ? groups.slice(0, 3) : groups) {
+          const chip = document.createElement('span');
+          chip.className = `unit-chip ${group.side}`;
+          chip.textContent = group.glyph + (group.count > 1 ? group.count : '');
+          chips.append(chip);
+        }
+        if (groups.length > 4) chips.append('…');
+        cell.append(chips);
+      } else cell.textContent = marker?.symbol ?? '';
+    }
     if (cell.title !== label) {
       cell.title = label;
       cell.setAttribute('aria-label', label);
     }
+  }
+  const overflowText = crowdedTiles.join('\n');
+  crowded.hidden = !overflowText;
+  if (crowded.textContent !== overflowText) crowded.textContent = overflowText;
+  inspector.hidden = !selectedAt;
+  if (selectedAt) {
+    const cell = cells.get(selectedTile);
+    const outgoing = new Set(shots.filter(shot => keyAt(shot.from) === selectedTile).map(shot =>
+      `${teamName[shot.side]}${unitName(shot.name)} → ${shot.to[0]}行${shot.to[1]}列（实际${distance(shot.from, shot.to, layout)}格）`));
+    const parts = [cell.title];
+    if (maxRange) parts.push(`高亮为${selectedGroups.length ? '格内单位的最大射程' : '从兵营格预览的兵种射程'} ${maxRange} 格`);
+    if (outgoing.size) parts.push(`本拍命中：${[...outgoing].join('、')}`);
+    inspector.textContent = parts.join('。');
+  }
+  if (lastFrame !== frame) {
+    lastFrame = frame;
+    lastShots = shots;
+    drawShots(canvas, shots, cells);
   }
 }
 
@@ -198,6 +247,7 @@ function render(session, now) {
   const { round, previous } = session;
   const { battleMs } = round.durations;
   if (displayed?.session.id !== session.id || displayed?.session.round.number !== round.number) {
+    selectedTile = null;
     element('notice').textContent = '';
     for (const input of sideInputs) input.checked = false;
     amountInput.value = '100';

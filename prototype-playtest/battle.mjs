@@ -220,6 +220,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   }
 
   const strikes = new Map();
+  state.shots = [];
   for (const unit of state.units) {
     const target = reservedPlanning ? inRangeShot(unit, state.units, state.buildings, board,
       roles && unit.tier === '重型' ? rangedPriority : (target) => Number(Boolean(target.kind)))
@@ -228,6 +229,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     const canHit = target && elapsed >= unit.nextAttack && distance(unit.at, target.at, board) <= unit.range;
     if (reservedPlanning) unit.hit = canHit ? target.id : null;
     if (!canHit) continue;
+    state.shots.push({ side: unit.side, name: unit.name, from: unit.at, to: target.at, range: unit.range });
     const pending = strikes.get(target.id)?.damage ?? 0;
     strikes.set(target.id, { target, damage: pending + directDamage(unit) });
     // Keep the fractional cadence while firing continuously. Idle time cannot bank shots.
@@ -284,9 +286,9 @@ export function countGround(owners, terrain) {
 }
 
 function frame(state, elapsed, combatRules) {
-  return { elapsed, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
+  return { elapsed, shots: state.shots, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
     buildings: state.buildings.map(({ id, side, kind, at, hp }) => ({ id, side, kind, at, hp })),
-    units: state.units.map(({ id, side, at, hp, name, source, target, hit }) => ({ id, side, at, hp, name, source,
+    units: state.units.map(({ id, side, at, hp, name, range, source, target, hit }) => ({ id, side, at, hp, name, range, source,
       ...(combatRules >= splitPursuitRules ? { target: target ?? null, hit: hit ?? null } : {}) })) };
 }
 
