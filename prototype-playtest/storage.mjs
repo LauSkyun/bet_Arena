@@ -20,7 +20,7 @@ function migrateResult(result, rates) {
 export function upgradeSession(saved) {
   if (!saved || saved.version === sessionVersion) return saved;
   // Older tabs reject this version before they can settle a round with newer rules.
-  if (saved.version === 6 || saved.version === 7 || saved.version === 8) return { ...saved, version: sessionVersion };
+  if (saved.version === 6 || saved.version === 7 || saved.version === 8 || saved.version === 9) return { ...saved, version: sessionVersion };
   if (saved.version === 5) return { ...saved, version: sessionVersion, round: { ...saved.round, combatRules: previousCombatRules } };
   if (saved.version === 4) return { ...saved, version: sessionVersion, round: { ...saved.round, board: legacyBoard, combatRules: previousCombatRules } };
   if (saved.version === 3) return { ...saved, version: sessionVersion, nextDurations: defaultDurations,

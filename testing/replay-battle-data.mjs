@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { secondsLimit } from '../prototype-playtest/timing.mjs';
-import { frameAt, simulateBattle } from '../prototype-playtest/battle.mjs';
+import { fireRevisionFor, frameAt, simulateBattle } from '../prototype-playtest/battle.mjs';
 
 try {
   const [file, at] = process.argv.slice(2);
@@ -12,7 +12,7 @@ try {
   if (!Number.isSafeInteger(duration) || duration < 1 || duration > secondsLimit * 1000) throw Error('战斗时长超出支持范围');
   const elapsed = at === undefined ? null : Number(at);
   if (elapsed !== null && (!Number.isSafeInteger(elapsed) || elapsed < 0)) throw Error('回放时点须为非负整数毫秒');
-  const replay = simulateBattle(round.loadout, duration, round.board, round.combatRules);
+  const replay = simulateBattle(round.loadout, duration, round.board, round.combatRules, fireRevisionFor(round));
   console.log(JSON.stringify({
     round: round.number,
     sealed: round.sealed,

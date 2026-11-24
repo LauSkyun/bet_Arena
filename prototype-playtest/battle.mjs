@@ -8,6 +8,9 @@ export const baseVictoryRules = 4;
 export const splitPursuitRules = 5;
 const unitRoleRules = 6;
 export const currentCombatRules = unitRoleRules;
+// Candidate rounds created before the fire-lock correction keep their sealed behavior.
+export const currentFireRevision = 2;
+export const fireRevisionFor = (round) => round.fireRevision ?? 1;
 const sides = ['red', 'blue'];
 const enemy = (side) => side === 'red' ? 'blue' : 'red';
 const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = false) =>
@@ -191,7 +194,7 @@ function resolveReversals(plans, elapsed, board) {
   }
 }
 
-export function advanceBattle(state, elapsed, board = currentBoard, combatRules = currentCombatRules) {
+export function advanceBattle(state, elapsed, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision) {
   const occupationIncludesSpecial = combatRules >= baseVictoryRules;
   const routes = makeRoutes(state.terrain, board);
   const arrivals = [];
@@ -205,6 +208,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       const target = chooseTarget(unit, state.units, state.buildings, route, board, reservedDamage, roles);
       if (reservedDamage && target && !target.kind) reservedDamage.set(target.id, (reservedDamage.get(target.id) ?? 0) + directDamage(unit));
       unit.target = target?.id ?? null;
+      if (reservedPlanning) unit.plannedTarget = unit.target;
       const destination = target ? route.find(({ at }) => distance(at, target.at, board) <= unit.range)
         : march(unit, state.buildings, route, state.terrain, board);
       const at = roles && unit.tier === '轻型' ? lightStep(unit, destination, state, routes, board) : destination?.first;
@@ -222,10 +226,12 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   const strikes = new Map();
   state.shots = [];
   for (const unit of state.units) {
-    const target = reservedPlanning ? inRangeShot(unit, state.units, state.buildings, board,
-      roles && unit.tier === '重型' ? rangedPriority : (target) => Number(Boolean(target.kind)))
+    const heavyFire = roles && unit.tier === '重型';
+    const legacyCandidate = reservedPlanning && fireRevision === 1;
+    const target = heavyFire || legacyCandidate ? inRangeShot(unit, state.units, state.buildings, board,
+      heavyFire ? rangedPriority : (target) => Number(Boolean(target.kind)))
       : chooseTarget(unit, state.units, state.buildings, routes(unit.at, unit.side), board);
-    if (!reservedPlanning) unit.target = target?.id ?? null;
+    if (!heavyFire && !legacyCandidate) unit.target = target?.id ?? null;
     const canHit = target && elapsed >= unit.nextAttack && distance(unit.at, target.at, board) <= unit.range;
     if (reservedPlanning) unit.hit = canHit ? target.id : null;
     if (!canHit) continue;
@@ -288,11 +294,11 @@ export function countGround(owners, terrain) {
 function frame(state, elapsed, combatRules) {
   return { elapsed, shots: state.shots, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
     buildings: state.buildings.map(({ id, side, kind, at, hp }) => ({ id, side, kind, at, hp })),
-    units: state.units.map(({ id, side, at, hp, name, range, source, target, hit }) => ({ id, side, at, hp, name, range, source,
-      ...(combatRules >= splitPursuitRules ? { target: target ?? null, hit: hit ?? null } : {}) })) };
+    units: state.units.map(({ id, side, at, hp, name, range, source, plannedTarget, hit }) => ({ id, side, at, hp, name, range, source,
+      ...(combatRules >= splitPursuitRules ? { target: plannedTarget ?? null, hit: hit ?? null } : {}) })) };
 }
 
-export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules) {
+export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision) {
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const usesBaseVictory = combatRules >= baseVictoryRules;
@@ -301,7 +307,7 @@ export function simulateBattle(loadout, durationMs, board = currentBoard, combat
     const frames = [];
     let fallenBases = [];
     for (let elapsed = 0; elapsed <= durationMs; elapsed += battleRules.stepMs) {
-      advanceBattle(state, elapsed, board, combatRules);
+      advanceBattle(state, elapsed, board, combatRules, fireRevision);
       frames.push(frame(state, elapsed, combatRules));
       if (usesBaseVictory) {
         fallenBases = sides.filter((side) => !state.buildings.some((building) => building.kind === 'base' && building.side === side));
@@ -330,11 +336,11 @@ export function simulateBattle(loadout, durationMs, board = currentBoard, combat
 
 // A refresh regenerates the same stream from the persisted sealed roster. Keep only the latest two streams in memory.
 const replays = new Map();
-export function replayFor(loadout, durationMs, board, combatRules = currentCombatRules) {
-  const key = JSON.stringify([board, combatRules, durationMs, loadout]);
+export function replayFor(loadout, durationMs, board, combatRules = currentCombatRules, fireRevision = currentFireRevision) {
+  const key = JSON.stringify([board, combatRules, fireRevision, durationMs, loadout]);
   if (!replays.has(key)) {
     if (replays.size >= 2) replays.delete(replays.keys().next().value);
-    replays.set(key, simulateBattle(loadout, durationMs, board, combatRules));
+    replays.set(key, simulateBattle(loadout, durationMs, board, combatRules, fireRevision));
   }
   return replays.get(key);
 }
