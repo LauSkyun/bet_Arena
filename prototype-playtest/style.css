@@ -139,3 +139,14 @@ main { width: min(100% - 1.25rem, 60rem); }
   .hex-board .building-name { font-size: .75rem; }
   .hex-board .building-level { padding: 0 2px; }
 }
+.gm-link, .gm a { color: #a3f3eb; }
+.gm-link { display: inline-block; padding: .4rem .65rem; border: 1px solid #5e7597; border-radius: .45rem; }
+.gm-layout { display: grid; grid-template-columns: minmax(18rem, 1.1fr) minmax(18rem, 1fr); gap: 1rem; align-items: start; }
+.gm fieldset { min-width: 0; border: 1px solid #52637c; }
+.gm label { display: grid; margin: .4rem 0; }
+.gm input, .gm select { min-height: 40px; font: inherit; }
+.gm .board { width: min(100%, 23rem); }
+.gm .cell.gm-site { background-image: linear-gradient(#ffe18544, #ffe18544); box-shadow: inset 0 0 0 2px #ffe185; }
+.gm .cell.selected { box-shadow: inset 0 0 0 3px white; }
+.gm #hits { padding-left: 1.2rem; }
+@media(max-width:680px) { .gm-layout { grid-template-columns: minmax(0,1fr); } }
