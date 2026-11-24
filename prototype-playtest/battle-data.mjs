@@ -5,12 +5,12 @@ import { returnsFor } from './returns.mjs';
 const sides = ['red', 'blue'];
 
 export function battleDataFor(round, reference) {
-  const { snapshot, result, number, board, combatRules, durations, profile } = round;
+  const { snapshot, result, number, board, combatRules, durations, fireRevision, profile } = round;
   const teams = snapshot?.teams ?? round.teams;
   const loadout = snapshot?.battle ?? Object.fromEntries(sides.map((side) => [side, battleLoadout(teams[side].roster, board)]));
   const stakes = snapshot?.stakes ?? stakesFor(teams);
   return {
-    number, board, combatRules, durations, profile,
+    number, board, combatRules, durations, fireRevision, profile,
     sealed: Boolean(snapshot),
     stakes,
     rates: snapshot ? snapshot.rates : returnsFor(teams),

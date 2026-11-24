@@ -1,7 +1,7 @@
 import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
-import { baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
+import { fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { barracksLimit, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
@@ -226,7 +226,7 @@ function render(session, now) {
   progress.hidden = stage.phase !== 'battle';
   progress.value = stage.progress ?? 0;
   const showBattle = ['battle', 'settling', 'result'].includes(stage.phase);
-  const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules) : null;
+  const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules, fireRevisionFor(round)) : null;
   const frame = replay ? frameAt(replay, stage.elapsedMs ?? battleMs) : null;
   const latestEffects = stage.phase === 'bet' ? round.lastEffects : [];
   renderBoard(round.board, teams, frame, latestEffects, round.combatRules >= baseVictoryRules);

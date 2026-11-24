@@ -3,10 +3,10 @@ import { battleDataFor } from './battle-data.mjs';
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
-import { baseVictoryRules, currentCombatRules, replayFor } from './battle.mjs';
+import { fireRevisionFor, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 9;
+export const sessionVersion = 10;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
@@ -30,6 +30,7 @@ function newRound(number, startedAt, seed, durations, board = currentBoard, prof
     board,
     profile,
     combatRules: currentCombatRules,
+    fireRevision: currentFireRevision,
     startedAt,
     durations,
     ...initialBetting(seedFor(seed, number, 0), seedFor(seed, number, 1)),
@@ -38,7 +39,7 @@ function newRound(number, startedAt, seed, durations, board = currentBoard, prof
 }
 
 function replayForRound(round) {
-  return replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules);
+  return replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules, fireRevisionFor(round));
 }
 
 export function timeline(round) {

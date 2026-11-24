@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceBattle, simulateBattle } from './battle.mjs';
+import { advanceBattle, fireRevisionFor, simulateBattle } from './battle.mjs';
 import { arenaProfile, profileUnit, scProfile, scRangeProfile } from './profiles.mjs';
 import { battleDataFor } from './battle-data.mjs';
 import { drawUnit } from './roster.mjs';
@@ -107,9 +107,43 @@ test('covered enemies free later soldiers to advance, wait behind obstacles, the
     advanceBattle(board, 500);
     assert.equal(leader.target, rival.id);
     assert.deepEqual(follower.at, hasPath ? [8, 4] : [7, 4]);
-    assert.equal(follower.target, hasPath ? base.id : null);
+    assert.equal(follower.plannedTarget, hasPath ? base.id : null);
     rival.hp = 21;
     advanceBattle(board, 1000);
-    assert.equal(follower.target, rival.id);
+    assert.equal(follower.plannedTarget, rival.id);
   }
+});
+
+test('only full-role heavy fire may switch from a reachable lock to an enemy already in range', () => {
+  for (const rules of [4, 5, 6]) {
+    for (const tier of [undefined, '轻型', '中型', '重型']) {
+      const shooter = unit(1, 'red', [7, 4], { tier, target: 2, damage: 6 });
+      const locked = unit(2, 'blue', [7, 7], { hp: 100, nextAttack: 1000 });
+      const closer = unit(3, 'blue', [7, 5], { hp: 100, nextAttack: 1000 });
+      const board = state([shooter, locked, closer], [], [[7, 6]]);
+      advanceBattle(board, 0, undefined, rules);
+      const heavyFire = rules === 6 && tier === '重型';
+      assert.equal(closer.hp, heavyFire ? 94 : 100);
+      assert.equal(locked.hp, 100);
+      if (!heavyFire) {
+        assert.equal(shooter.target, locked.id);
+        assert.equal(shooter.nextAttack, 0);
+        board.units = [shooter, closer];
+        advanceBattle(board, 0, undefined, rules);
+        assert.equal(shooter.target, closer.id);
+        assert.equal(closer.hp, 94);
+      }
+    }
+  }
+});
+
+test('upgrading a candidate keeps its firing revision for the open round and its export', () => {
+  const old = newSession('v9', 0, [], 4, { betMs: 1000, battleMs: 2000 });
+  old.version = 9;
+  delete old.round.fireRevision;
+  const saved = upgradeSession(old);
+  assert.equal(fireRevisionFor(saved.round), 1);
+  const rolled = advance(saved, timeline(saved.round).next);
+  assert.equal(fireRevisionFor(rolled.previous.battleData), 1);
+  assert.equal(fireRevisionFor(battleDataFor(rolled.round, [])), 2);
 });
