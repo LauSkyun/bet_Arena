@@ -56,3 +56,42 @@ test('current and previous exports preserve the exact inputs without private ide
   assert.deepEqual(reproduced.result.damage, round.result.damage);
   assert.deepEqual(reproduced.result.scores, round.result.scores);
 });
+
+
+test('new rounds field only barracks production and an empty battlefield settles as a draw', () => {
+  const empty = newSession('empty', 0, [], 4);
+  const result = advance(empty, timeline(empty.round).finish);
+  assert.equal(result.round.result.winner, 'draw');
+  assert.deepEqual(result.round.result.scores, { red: 28, blue: 28 });
+  assert.equal(result.balance, 10000);
+  for (const profile of ['arena-v1', 'sc-sample-v1', 'sc-range-v1']) {
+    const session = newSession('s', 0, [], 4, undefined, undefined, profile);
+    const paid = placeBet(session, 1, { sessionId: 's', requestId: 'bet', roundNumber: 1, side: 'red', amount: 10 }).session;
+    const open = battleDataFor(paid.round, []);
+    const sealed = advance(paid, timeline(paid.round).lock);
+    const data = battleDataFor(sealed.round, []);
+    assert.deepEqual(open.loadout, data.loadout);
+    const replay = simulateBattle(data.loadout, 5000, data.board, data.combatRules);
+    const { unit } = data.loadout.red.barracks[0];
+    const first = replay.frames.find(f => f.units.length);
+    assert.equal(first.elapsed, unit.spawnMs ?? 500);
+    assert.equal(first.units.length, unit.spawnCount ?? 1);
+    assert.ok(replay.frames.every(f => f.units.every(u => u.side === 'red' && u.source && u.name)));
+  }
+});
+
+test('v10 retains opening troops through seal and export, then rolls over to barracks only', () => {
+  const old = newSession('old', 0, [], 4);
+  old.version = 10;
+  old.round.combatRules = 6;
+  const migrated = upgradeSession(JSON.parse(JSON.stringify(old)));
+  const sealed = advance(migrated, timeline(migrated.round).lock);
+  const oldData = battleDataFor(sealed.round, []);
+  assert.equal(oldData.loadout.red.startingUnits.length, 3);
+  const replay = simulateBattle(oldData.loadout, 500, oldData.board, oldData.combatRules, oldData.fireRevision);
+  assert.equal(replay.frames[0].units.length, 6);
+  const next = advance(sealed, timeline(sealed.round).next);
+  assert.equal(next.round.combatRules, currentCombatRules);
+  assert.deepEqual(next.previous.battleData.loadout, oldData.loadout);
+  assert.deepEqual(battleDataFor(next.round, []).loadout.red.startingUnits, []);
+});

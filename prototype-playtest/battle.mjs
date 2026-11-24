@@ -1,4 +1,4 @@
-import { barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
+import { barracksOnlyRules, startingPositions, barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
@@ -7,7 +7,7 @@ export const damageTiebreakRules = 3;
 export const baseVictoryRules = 4;
 export const splitPursuitRules = 5;
 const unitRoleRules = 6;
-export const currentCombatRules = unitRoleRules;
+export const currentCombatRules = barracksOnlyRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
 export const fireRevisionFor = (round) => round.fireRevision ?? 1;
@@ -33,17 +33,19 @@ export function openingGround(board) {
   return owners;
 }
 
-function makeState(loadout, board, occupationIncludesSpecial) {
+function makeState(loadout, board, combatRules) {
+  const occupationIncludesSpecial = combatRules >= baseVictoryRules;
   const owners = openingGround(board);
   const terrain = Object.fromEntries(Object.keys(owners).map((key) => [key, 'ground']));
   const buildings = [], units = [];
   let sequence = 0;
   for (const side of sides) {
     const map = mapFor(side, board);
+    const starts = startingPositions(map, combatRules);
     const setup = loadout?.[side];
     if (setup?.side !== side || !Array.isArray(setup.base) || keyAt(setup.base) !== keyAt(map.base) ||
       !Array.isArray(setup.barracks) || setup.barracks.length > (hasExpansion(board) ? barracksLimit : map.plots.length) ||
-      !Array.isArray(setup.startingUnits) || setup.startingUnits.length !== map.starts.length) throw Error('Invalid battle loadout');
+      !Array.isArray(setup.startingUnits) || setup.startingUnits.length !== starts.length) throw Error('Invalid battle loadout');
     terrain[keyAt(map.base)] = 'base';
     buildings.push({ id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' });
     for (const plot of map.plots) {
@@ -64,7 +66,7 @@ function makeState(loadout, board, occupationIncludesSpecial) {
         hp: battleRules.barracksHp, kind: 'barracks', nextSpawn: barracks.unit.spawnMs ?? battleRules.spawnMs });
     }
     const startKeys = new Set(setup.startingUnits.map(({ at }) => keyAt(at)));
-    if (startKeys.size !== map.starts.length || map.starts.some((at) => !startKeys.has(keyAt(at)))) throw Error('Invalid starting positions');
+    if (startKeys.size !== starts.length || starts.some((at) => !startKeys.has(keyAt(at)))) throw Error('Invalid starting positions');
     for (const starter of setup.startingUnits) {
       if (starter.side !== side || !usableStats(starter)) throw Error('Invalid starting unit');
       units.push({ ...starter, id: ++sequence, target: null, nextAttack: 0 });
@@ -302,7 +304,7 @@ export function simulateBattle(loadout, durationMs, board = currentBoard, combat
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const usesBaseVictory = combatRules >= baseVictoryRules;
-    const state = makeState(loadout, board, usesBaseVictory);
+    const state = makeState(loadout, board, combatRules);
     if (combatRules === damageTiebreakRules) state.damage = { red: 0, blue: 0 };
     const frames = [];
     let fallenBases = [];

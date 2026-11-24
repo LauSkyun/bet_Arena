@@ -113,8 +113,8 @@ test('cross-theme barracks belong to their original side and get route and comba
   const charged = placeBet(session, 10, { sessionId: 'test', requestId: 'one', roundNumber: 1, side: 'red', amount: 30 }).session;
   const locked = advance(charged, timeline(charged.round).lock);
   const { finish } = timeline(locked.round);
-  assert.deepEqual(locked.round.snapshot.battle.red.startingUnits.map(({ at }) => at), mapFor('red').starts);
-  assert.deepEqual(locked.round.snapshot.battle.blue.startingUnits.map(({ at }) => at), mapFor('blue').starts);
+  assert.deepEqual(locked.round.snapshot.battle.red.startingUnits, []);
+  assert.deepEqual(locked.round.snapshot.battle.blue.startingUnits, []);
   assert.deepEqual(advance(locked, finish).round.snapshot, locked.round.snapshot);
 });
 

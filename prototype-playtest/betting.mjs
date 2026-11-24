@@ -55,7 +55,7 @@ export function advanceBetting(round, reference, lockAt, now) {
     stakes: stakesFor(updated.teams),
     rates: returnsFor(updated.teams),
     teams: updated.teams,
-    battle: { red: battleLoadout(updated.teams.red.roster, updated.board), blue: battleLoadout(updated.teams.blue.roster, updated.board) },
+    battle: { red: battleLoadout(updated.teams.red.roster, updated.board, updated.combatRules), blue: battleLoadout(updated.teams.blue.roster, updated.board, updated.combatRules) },
     receipts: updated.receipts,
     lockedAt: lockAt,
   };

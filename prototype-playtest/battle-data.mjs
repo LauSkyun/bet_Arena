@@ -7,7 +7,7 @@ const sides = ['red', 'blue'];
 export function battleDataFor(round, reference) {
   const { snapshot, result, number, board, combatRules, durations, fireRevision, profile } = round;
   const teams = snapshot?.teams ?? round.teams;
-  const loadout = snapshot?.battle ?? Object.fromEntries(sides.map((side) => [side, battleLoadout(teams[side].roster, board)]));
+  const loadout = snapshot?.battle ?? Object.fromEntries(sides.map((side) => [side, battleLoadout(teams[side].roster, board, combatRules)]));
   const stakes = snapshot?.stakes ?? stakesFor(teams);
   return {
     number, board, combatRules, durations, fireRevision, profile,

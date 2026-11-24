@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceBattle, fireRevisionFor, simulateBattle } from './battle.mjs';
+import { advanceBattle, currentCombatRules, fireRevisionFor, simulateBattle } from './battle.mjs';
 import { arenaProfile, profileUnit, scProfile, scRangeProfile } from './profiles.mjs';
 import { battleDataFor } from './battle-data.mjs';
 import { drawUnit } from './roster.mjs';
@@ -81,7 +81,7 @@ test('configuration switch persists across old-round refresh, sealing, replay an
   assert.equal(saveRoundDurations(saved,2,5,5,'unknown').session,saved);
   const first=advance(saved,timeline(saved.round).lock);
   const next=advance(JSON.parse(JSON.stringify(first)),timeline(first.round).next);
-  assert.equal(next.round.profile,scProfile); assert.equal(next.round.combatRules,6);
+  assert.equal(next.round.profile,scProfile); assert.equal(next.round.combatRules,currentCombatRules);
   const ticket={sessionId:'old',roundNumber:2,side:'blue',requestId:'one',amount:100};
   const paid=placeBet(next,next.round.startedAt+1,ticket).session;
   const queued=saveRoundDurations(paid,next.round.startedAt+2,5,5,arenaProfile).session;

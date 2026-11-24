@@ -6,7 +6,7 @@ import { settleSession } from './settlement.mjs';
 import { fireRevisionFor, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 10;
+export const sessionVersion = 11;
 
 const lockMs = 2_000;
 const resultMs = 5_000;

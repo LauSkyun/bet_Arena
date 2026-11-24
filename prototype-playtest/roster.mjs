@@ -147,14 +147,20 @@ export function unitStats(barracks) {
   return { ...unit, hp: Math.floor(hp * scale / 100), damage: Math.floor(damage * scale / 100) };
 }
 
-export function battleLoadout(roster, board) {
+export const barracksOnlyRules = 7;
+
+export function startingPositions(map, combatRules) {
+  return combatRules >= barracksOnlyRules ? [] : map.starts;
+}
+
+export function battleLoadout(roster, board, combatRules = barracksOnlyRules) {
   const map = mapFor(roster.side, board);
   return {
     side: roster.side,
     theme: roster.theme,
     base: map.base,
     barracks: roster.barracks.map((entry) => ({ ...entry, unit: unitStats(entry) })),
-    startingUnits: map.starts.map((at) => ({ at, side: roster.side, hp: 40, damage: 6, range: 1, attackMs: 1000 })),
+    startingUnits: startingPositions(map, combatRules).map((at) => ({ at, side: roster.side, hp: 40, damage: 6, range: 1, attackMs: 1000 })),
   };
 }
 

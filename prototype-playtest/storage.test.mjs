@@ -8,6 +8,7 @@ import { legacyBoard } from './roster.mjs';
 test('legacy active and settled records preserve balance, sealed stakes and receipts on migration', () => {
   const session = newSession('legacy', 0, [], 3, legacyDurations);
   session.round.board = legacyBoard;
+  session.round.combatRules = 1;
   const bet = placeBet(session, 1, { sessionId: 'legacy', roundNumber: 1, side: 'red', amount: 30, requestId: 'paid' }).session;
   const time = timeline(bet.round);
   const active = advance(bet, time.lock);
@@ -40,6 +41,7 @@ test('legacy active and settled records preserve balance, sealed stakes and rece
 test('v2 sealed round honors its former multiplier while an open round locks the new rate', () => {
   const session = newSession('legacy-v2', 0, [], 3, legacyDurations);
   session.round.board = legacyBoard;
+  session.round.combatRules = 1;
   const wager = placeBet(session, 1, { sessionId: session.id, roundNumber: 1, side: 'red', amount: 30, requestId: 'paid' }).session;
   const time = timeline(wager.round);
   const sealed = structuredClone(advance(wager, time.lock));

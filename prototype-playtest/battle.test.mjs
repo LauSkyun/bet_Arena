@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceBattle, applyOccupancy, baseVictoryRules, countGround, damageTiebreakRules, frameAt, replayFor, simulateBattle } from './battle.mjs';
+import { advanceBattle, applyOccupancy, currentCombatRules, baseVictoryRules, countGround, damageTiebreakRules, frameAt, replayFor, simulateBattle } from './battle.mjs';
 import { battleLoadout, drawUnit, keyAt, mapFor, newRoster, priorBoard, validBuilds } from './roster.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
-const toLoadout = () => ({ red: battleLoadout(newRoster('red', 73)), blue: battleLoadout(newRoster('blue', 22)) });
+const toLoadout = (rules) => ({ red: battleLoadout(newRoster('red', 73), undefined, rules), blue: battleLoadout(newRoster('blue', 22), undefined, rules) });
 const walking = (id, side, at, hp = 40) => ({ id, side, at, hp, damage: 6, range: 1, attackMs: 1000, target: null, nextAttack: 0 });
 
 function tinyState(owners, buildings, units) {
@@ -93,7 +93,7 @@ test('same roster reproduces the frame sequence, with a tie and frozen final sco
 });
 
 test('the game continues after the main base falls and favors the side with more final ground', () => {
-  const loadout = toLoadout();
+  const loadout = toLoadout(damageTiebreakRules);
   loadout.red.startingUnits = loadout.red.startingUnits.map((unit) => ({ ...unit, damage: 300, hp: 1000, range: 3 }));
   const battle = simulateBattle(loadout, 25_000, undefined, damageTiebreakRules);
   const destroyed = battle.frames.find((frame) => frame.terrain['14-4'] === 'ruins');
@@ -142,6 +142,7 @@ test('a real sealed round transfers each captured scoring tile and settles the s
 
 test('the recorded diagonal pursuit gets into range while older rounds retain their replay', () => {
   const start = newSession('recorded-reversal', 0, undefined, 0, undefined, priorBoard);
+  start.round.combatRules = baseVictoryRules;
   const times = timeline(start.round);
   const { round } = advance(start, times.lock);
   assert.deepEqual(round.snapshot.battle.red.barracks.map(({ at, unit }) => [at, unit.tier]), [[[1, 5], '中型']]);
@@ -161,7 +162,7 @@ test('the recorded diagonal pursuit gets into range while older rounds retain th
   const health = ({ units }) => units.reduce((sum, unit) => sum + unit.hp, 0);
   assert.ok(health(frameAt(fixed, 37_500)) < health(frameAt(fixed, 37_000)));
   assert.deepEqual(advance(restored, times.finish).round.result.scores, before.result.scores);
-  assert.equal(advance(restored, times.next).round.combatRules, round.combatRules);
+  assert.equal(advance(restored, times.next).round.combatRules, currentCombatRules);
 });
 
 test('an enemy soldier recolors a traversable building plot without changing the territory score', () => {
@@ -169,7 +170,7 @@ test('an enemy soldier recolors a traversable building plot without changing the
     const roster = newRoster(side, 0);
     const { at, exit } = validBuilds(roster).find(({ at }) => keyAt(at) === target);
     roster.barracks = [{ at, exit, side, unit: drawUnit('人族', 0, tier), level: 1 }];
-    return battleLoadout(roster);
+    return battleLoadout(roster, undefined, baseVictoryRules);
   };
   const loadout = { red: setup('red', '2-5', .85), blue: setup('blue', '14-5', .5) };
   const before = simulateBattle(loadout, 60_000, undefined, damageTiebreakRules);

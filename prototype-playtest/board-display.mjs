@@ -1,12 +1,14 @@
 import { keyAt } from './roster.mjs';
 
-const glyphs = new Map(Object.entries({
-  基础卒: '卒', 巡地兵: '巡', 护阵步兵: '护', 长弩手: '弩',
-  闪步卫: '闪', 石环卫: '石', 棱光射手: '棱',
-  掘行虫: '掘', 扣甲虫: '甲', 脊弩虫: '脊',
-  跳虫: '跳', 狂热者: '狂', 机枪兵: '枪',
+// Each entry pairs the barracks' two-character label with its soldier's glyph.
+const labels = new Map(Object.entries({
+  巡地兵: ['巡地', '巡'], 护阵步兵: ['护阵', '护'], 长弩手: ['长弩', '弩'],
+  闪步卫: ['闪步', '闪'], 石环卫: ['石环', '石'], 棱光射手: ['棱光', '棱'],
+  掘行虫: ['掘行', '掘'], 扣甲虫: ['扣甲', '甲'], 脊弩虫: ['脊弩', '脊'],
+  跳虫: ['跳虫', '跳'], 狂热者: ['狂热', '狂'], 机枪兵: ['机枪', '枪'],
 }));
-export const glyphFor = (name) => glyphs.get(name) ?? Array.from(name || '卒')[0];
+export const barracksLabel = (name) => labels.get(name)?.[0] ?? Array.from(name).slice(0, 2).join('');
+export const glyphFor = (name) => labels.get(name)?.[1] ?? (!name || name === '基础卒' ? '卒' : Array.from(name)[0]);
 export const unitName = (name) => name || '基础卒';
 
 export function troopsByTile(units) {

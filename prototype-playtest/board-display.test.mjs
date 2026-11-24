@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { glyphFor, troopsByTile } from './board-display.mjs';
+import { barracksLabel, glyphFor, troopsByTile } from './board-display.mjs';
 import { advanceBattle } from './battle.mjs';
 
 test('glyphs are unique across the two unit pools, and counts stay within one side and type', () => {
   const names = ['基础卒','巡地兵','护阵步兵','长弩手','闪步卫','石环卫','棱光射手','掘行虫','扣甲虫','脊弩虫','跳虫','狂热者','机枪兵'];
   assert.equal(new Set(names.map(glyphFor)).size, names.length);
   assert.ok(names.every(name => name.includes(glyphFor(name))));
+  const labels = names.slice(1).map(barracksLabel);
+  assert.equal(new Set(labels).size, 12);
+  for (const name of names.slice(1)) {
+    assert.equal(barracksLabel(name).length, 2);
+    assert.ok(name.includes(barracksLabel(name)));
+    assert.ok(barracksLabel(name).includes(glyphFor(name)));
+  }
   const units = [['red','机枪兵'],['red','机枪兵'],['red','跳虫'],['blue','机枪兵'],['blue',undefined]]
     .map(([side, name]) => ({side, name, at:[7,4], range:name === '机枪兵' ? 5 : 1}));
   const groups = [...troopsByTile(units).get('7-4').values()];

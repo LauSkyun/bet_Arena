@@ -95,7 +95,7 @@ test('late acknowledgment recovers the original receipt and cannot change the se
   assert.deepEqual(late.session.round.snapshot, snapshot);
   assert.deepEqual(snapshot.stakes, { red: 20, blue: 0 });
   assert.equal(snapshot.battle.red.barracks.length, snapshot.teams.red.roster.barracks.length);
-  assert.equal(snapshot.battle.red.startingUnits.length, 3);
+  assert.equal(snapshot.battle.red.startingUnits.length, 0);
   const rejected = place(locked, 'late', 'red', 10, time.lock);
   assert.ok(rejected.error);
   assert.equal(rejected.session, locked);

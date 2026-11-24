@@ -1,4 +1,4 @@
-import { drawShots, glyphFor, troopsByTile, unitName } from './board-display.mjs';
+import { drawShots, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
 import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
@@ -18,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-board-units.v1';
+const pendingKey = 'bet-arena.prototype.pending-barracks-only.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -66,7 +66,7 @@ function renderTeam(side, team, phase, percent, layout) {
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
   element(`${side}-system`).textContent = `系统投入 ${team.system} 点`;
-  const barracks = team.roster.barracks.map(({ unit, level, at }) => `〔${glyphFor(unit.name)}〕${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
+  const barracks = team.roster.barracks.map(({ unit, level, at }) => `〔${barracksLabel(unit.name)}〕${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
   element(`${side}-layout`).textContent = hasExpansion(layout) ? `兵营 ${barracks.length}／${barracksLimit}${barracks.length ? ` · ${barracks.join('、')}` : ''}`
     : barracks.join('、') || '尚无兵营';
   const left = betting.threshold - team.total % betting.threshold;
@@ -138,7 +138,7 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
       }
       const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
       const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
-      markers.set(keyAt(at), { kind: 'barracks', symbol: `${glyphFor(name)}营`, range, side, label });
+      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), range, side, label });
     }
   }
   const troops = troopsByTile(frame?.units ?? []);
