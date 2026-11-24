@@ -4,7 +4,7 @@ import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
-import { barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
+import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
 import { resetSession, updateSession } from './storage.mjs';
@@ -18,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-barracks-only.v1';
+const pendingKey = 'bet-arena.prototype.pending-base-defense.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -93,7 +93,9 @@ board.addEventListener('click', (event) => {
   render(displayed.session, displayed.now);
 });
 
-function renderBoard(layout, teams, frame, effects, updatedOccupation) {
+function renderBoard(round, teams, frame, effects) {
+  const layout = round.board;
+  const updatedOccupation = round.combatRules >= baseVictoryRules;
   if (renderedLayout !== layout) {
     renderedLayout = layout;
     const rows = boardRows(layout);
@@ -124,7 +126,10 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
   for (const side of sides) {
     const map = mapFor(side, layout);
     const roster = teams[side].roster;
-    markers.set(keyAt(map.base), { kind: 'base', symbol: '基', label: `${teamName[side]}主基地` });
+    const weapon = round.combatRules >= baseDefenseRules ? (round.snapshot?.battle[side].baseAttack ?? baseAttack) : null;
+    const defense = weapon ? `，射程${weapon.range}格，单次伤害${weapon.damage}，攻击间隔${weapon.attackMs / 1000}秒` : '';
+    markers.set(keyAt(map.base), { kind: 'base', symbol: roster.theme, range: weapon?.range,
+      label: `${teamName[side]}${roster.theme}主基地${defense}` });
     for (const { at, exit } of map.plots) {
       markers.set(keyAt(at), { kind: 'plot', symbol: '', label: `${teamName[side]}可建格` });
       if (exit) markers.set(keyAt(exit), { kind: 'exit', symbol: '·', label: `${teamName[side]}出兵口` });
@@ -138,7 +143,7 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
       }
       const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
       const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
-      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), range, side, label });
+      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), level, range, side, label });
     }
   }
   const troops = troopsByTile(frame?.units ?? []);
@@ -173,7 +178,7 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
     const ownerLabel = teamName[land] ?? '中立';
     const label = `${row}行${col}列，${marker?.label ?? '普通格'}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
-    const signature = troopLabel || marker?.symbol || '';
+    const signature = troopLabel || `${marker?.symbol ?? ''}/${marker?.level ?? ''}`;
     if (cell.dataset.content !== signature) {
       cell.dataset.content = signature;
       cell.replaceChildren();
@@ -188,6 +193,14 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
         }
         if (groups.length > 4) chips.append('…');
         cell.append(chips);
+      } else if (marker?.level) {
+        const title = document.createElement('span');
+        title.className = 'building-name';
+        title.textContent = marker.symbol;
+        const grade = document.createElement('span');
+        grade.className = 'building-level';
+        grade.textContent = `${marker.level}级`;
+        cell.append(title, grade);
       } else cell.textContent = marker?.symbol ?? '';
     }
     if (cell.title !== label) {
@@ -204,7 +217,7 @@ function renderBoard(layout, teams, frame, effects, updatedOccupation) {
     const outgoing = new Set(shots.filter(shot => keyAt(shot.from) === selectedTile).map(shot =>
       `${teamName[shot.side]}${unitName(shot.name)} → ${shot.to[0]}行${shot.to[1]}列（实际${distance(shot.from, shot.to, layout)}格）`));
     const parts = [cell.title];
-    if (maxRange) parts.push(`高亮为${selectedGroups.length ? '格内单位的最大射程' : '从兵营格预览的兵种射程'} ${maxRange} 格`);
+    if (maxRange) parts.push(`高亮为${selectedGroups.length ? '格内单位的最大射程' : selectedMarker?.kind === 'base' ? '基地防守射程' : '从兵营格预览的兵种射程'} ${maxRange} 格`);
     if (outgoing.size) parts.push(`本拍命中：${[...outgoing].join('、')}`);
     inspector.textContent = parts.join('。');
   }
@@ -279,7 +292,7 @@ function render(session, now) {
   const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules, fireRevisionFor(round)) : null;
   const frame = replay ? frameAt(replay, stage.elapsedMs ?? battleMs) : null;
   const latestEffects = stage.phase === 'bet' ? round.lastEffects : [];
-  renderBoard(round.board, teams, frame, latestEffects, round.combatRules >= baseVictoryRules);
+  renderBoard(round, teams, frame, latestEffects);
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
   const rates = round.snapshot ? round.snapshot.rates : returnsFor(teams);

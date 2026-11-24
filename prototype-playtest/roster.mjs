@@ -148,17 +148,20 @@ export function unitStats(barracks) {
 }
 
 export const barracksOnlyRules = 7;
+export const baseDefenseRules = 8;
+export const baseAttack = Object.freeze({ damage: 12, range: 3, attackMs: 1000 });
 
 export function startingPositions(map, combatRules) {
   return combatRules >= barracksOnlyRules ? [] : map.starts;
 }
 
-export function battleLoadout(roster, board, combatRules = barracksOnlyRules) {
+export function battleLoadout(roster, board, combatRules = baseDefenseRules) {
   const map = mapFor(roster.side, board);
   return {
     side: roster.side,
     theme: roster.theme,
     base: map.base,
+    ...(combatRules >= baseDefenseRules ? { baseAttack: { ...baseAttack } } : {}),
     barracks: roster.barracks.map((entry) => ({ ...entry, unit: unitStats(entry) })),
     startingUnits: startingPositions(map, combatRules).map((at) => ({ at, side: roster.side, hp: 40, damage: 6, range: 1, attackMs: 1000 })),
   };

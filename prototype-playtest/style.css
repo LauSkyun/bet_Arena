@@ -120,3 +120,6 @@ main { width: min(100% - 1.25rem, 60rem); }
 .unit-chip.blue { background: #143959; color: #b9e4ff; }
 .tile-inspector { margin: .5rem auto; padding: .5rem .75rem; border-left: 3px solid #ffe39b; background: #1d293e; font-size: .88rem; }
 .crowded-tiles { margin: .5rem auto; color: #e2eaf6; font-size: .82rem; white-space: pre-line; }
+.board .cell.barracks { align-content: center; justify-items: center; row-gap: 1px; }
+.building-name, .building-level { position: relative; line-height: 1; }
+.building-level { padding: 1px 3px; border-radius: 3px; color: #ffe69b; background: #19212e; font-size: clamp(9px, 2.6vw, 11px); font-variant-numeric: tabular-nums; }

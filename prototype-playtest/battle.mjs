@@ -1,4 +1,4 @@
-import { barracksOnlyRules, startingPositions, barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
+import { baseDefenseRules, startingPositions, barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
@@ -7,7 +7,7 @@ export const damageTiebreakRules = 3;
 export const baseVictoryRules = 4;
 export const splitPursuitRules = 5;
 const unitRoleRules = 6;
-export const currentCombatRules = barracksOnlyRules;
+export const currentCombatRules = baseDefenseRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
 export const fireRevisionFor = (round) => round.fireRevision ?? 1;
@@ -47,7 +47,13 @@ function makeState(loadout, board, combatRules) {
       !Array.isArray(setup.barracks) || setup.barracks.length > (hasExpansion(board) ? barracksLimit : map.plots.length) ||
       !Array.isArray(setup.startingUnits) || setup.startingUnits.length !== starts.length) throw Error('Invalid battle loadout');
     terrain[keyAt(map.base)] = 'base';
-    buildings.push({ id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' });
+    const base = { id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' };
+    if (combatRules >= baseDefenseRules) {
+      const weapon = setup.baseAttack;
+      if (!weapon || !usableStats({ ...weapon, hp: base.hp })) throw Error('Invalid base attack');
+      Object.assign(base, { weapon, nextAttack: 0, name: `${setup.theme}基地` });
+    }
+    buildings.push(base);
     for (const plot of map.plots) {
       terrain[keyAt(plot.at)] = 'plot';
       if (occupationIncludesSpecial && hasExpansion(board)) owners[keyAt(plot.at)] = side;
@@ -243,6 +249,20 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     // Keep the fractional cadence while firing continuously. Idle time cannot bank shots.
     const due = elapsed - unit.nextAttack < battleRules.stepMs ? unit.nextAttack : elapsed;
     unit.nextAttack = due + unit.attackMs;
+  }
+  if (combatRules >= baseDefenseRules) {
+    for (const base of state.buildings) {
+      if (!base.weapon || elapsed < base.nextAttack) continue;
+      const { range, damage, attackMs } = base.weapon;
+      const enemies = state.units.filter(unit => unit.side !== base.side && distance(base.at, unit.at, board) <= range);
+      const target = pickTarget(base, enemies, board, () => 0);
+      if (!target) continue;
+      base.target = target.id;
+      base.nextAttack = elapsed + attackMs;
+      state.shots.push({ side: base.side, name: base.name, from: base.at, to: target.at, range, sourceKind: 'base' });
+      const pending = strikes.get(target.id)?.damage ?? 0;
+      strikes.set(target.id, { target, damage: pending + damage });
+    }
   }
   for (const { target, damage } of strikes.values()) {
     if (state.damage) state.damage[enemy(target.side)] += Math.min(target.hp, damage);

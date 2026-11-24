@@ -223,3 +223,53 @@ test('main base destruction settles at the actual tick and starts the next round
   assert.equal(restored.balance, 10_020);
   assert.equal(restored.previous.battleData.result.decidedBy, 'base');
 });
+
+test('base defense checks range after movement, keeps a legal lock and shares the simultaneous damage phase', () => {
+  const base = { id: 1, side: 'red', at: [7,4], kind: 'base', hp: 240, name: '人族基地',
+    nextAttack: 0, weapon: { damage: 12, range: 3, attackMs: 1000 } };
+  const distant = { ...walking(2, 'blue', [7,1], 30), nextAttack: 10000 };
+  const closer = { ...walking(3, 'blue', [7,5], 30), nextAttack: 10000 };
+  const ally = walking(4, 'red', [7,5]);
+  ally.nextAttack = 10000;
+  const board = tinyState({ '7-1':'blue','7-5':'blue' }, [base], [distant, ally]);
+  advanceBattle(board, 0);
+  assert.equal(distant.hp, 18);
+  assert.equal(board.shots[0].sourceKind, 'base');
+  board.units.push(closer);
+  advanceBattle(board, 500);
+  assert.equal(board.shots.length, 0);
+  advanceBattle(board, 1000);
+  assert.equal(distant.hp, 6);
+  assert.equal(closer.hp, 30);
+  distant.at = [1,1];
+  board.units = board.units.filter(u => u !== ally);
+  base.hp = 6;
+  closer.nextAttack = 0;
+  closer.hp = 12;
+  advanceBattle(board, 2000);
+  assert.equal(board.buildings.length, 0);
+  assert.equal(board.units.includes(closer), false);
+  assert.equal(distant.hp, 6);
+  assert.equal(ally.hp, 40);
+  assert.equal(board.shots.filter(s => s.sourceKind === 'base').length, 1);
+  advanceBattle(board, 3000);
+  assert.equal(board.shots.filter(s => s.sourceKind === 'base').length, 0);
+});
+
+test('v11 keeps its passive base, then the new round seals and exports its own weapon values', () => {
+  const old = newSession('old-base', 0, [], 4);
+  old.version = 11;
+  old.round.combatRules = 7;
+  const migrated = upgradeSession(JSON.parse(JSON.stringify(old)));
+  const first = advance(migrated, timeline(migrated.round).lock);
+  assert.equal(first.round.snapshot.battle.red.baseAttack, undefined);
+  const next = advance(first, timeline(first.round).next);
+  const sealed = advance(next, timeline(next.round).lock);
+  assert.equal(sealed.round.combatRules, 8);
+  for (const side of ['red','blue']) {
+    assert.deepEqual(sealed.round.snapshot.battle[side].baseAttack, {damage:12, range:3, attackMs:1000});
+  }
+  const replay = simulateBattle(sealed.round.snapshot.battle, 2000, sealed.round.board, 8);
+  assert.ok(replay.frames.every(f => !f.units.length && !f.shots.length));
+  assert.equal(replay.result.winner, 'draw');
+});
