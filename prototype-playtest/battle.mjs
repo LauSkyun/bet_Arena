@@ -7,6 +7,7 @@ export const damageTiebreakRules = 3;
 export const baseVictoryRules = 4;
 export const splitPursuitRules = 5;
 const unitRoleRules = 6;
+export const groundProductionRules = 9;
 export const currentCombatRules = baseDefenseRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
@@ -16,6 +17,13 @@ const enemy = (side) => side === 'red' ? 'blue' : 'red';
 const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = false) =>
   [hp, damage, range, attackMs].every((value) => Number.isSafeInteger(value) && value > 0) &&
   attackMs >= battleRules.stepMs && (!needsLimit || (Number.isSafeInteger(limit) && limit > 0 && limit <= 10));
+
+function validBarracksUnit(unit, rules) {
+  if (rules !== groundProductionRules || !unit) return usableStats(unit, true);
+  if (unit.effect === 'heal') return unit.damage === 0 && usableStats({ ...unit, damage: unit.healing }, true);
+  if (unit.effect === 'self-destruct') return unit.attackMs === 0 && usableStats({ ...unit, attackMs: battleRules.stepMs }, true);
+  return usableStats(unit, true);
+}
 
 export function openingGround(board) {
   const owners = {};
@@ -64,7 +72,7 @@ function makeState(loadout, board, combatRules) {
     for (const barracks of setup.barracks) {
       const plot = map.plots.find(({ at }) => keyAt(at) === keyAt(barracks.at));
       if (!plot || used.has(keyAt(plot.at)) || keyAt(exits ? exits.get(keyAt(plot.at)) : plot.exit) !== keyAt(barracks.exit) ||
-        barracks.side !== side || !usableStats(barracks.unit, true)) throw Error('Invalid barracks');
+        barracks.side !== side || !validBarracksUnit(barracks.unit, combatRules)) throw Error('Invalid barracks');
       used.add(keyAt(plot.at));
       terrain[keyAt(plot.at)] = 'barracks';
       delete owners[keyAt(plot.at)];
@@ -212,9 +220,10 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   else {
     const reservedDamage = reservedPlanning ? new Map() : undefined;
     const moves = state.units.map((unit) => {
+      if (elapsed < (unit.nextMove ?? 0)) return { unit, at: null };
       const route = routes(unit.at, unit.side);
       const target = chooseTarget(unit, state.units, state.buildings, route, board, reservedDamage, roles);
-      if (reservedDamage && target && !target.kind) reservedDamage.set(target.id, (reservedDamage.get(target.id) ?? 0) + directDamage(unit));
+      if (reservedDamage && target && !target.kind && unit.effect !== 'self-destruct') reservedDamage.set(target.id, (reservedDamage.get(target.id) ?? 0) + directDamage(unit));
       unit.target = target?.id ?? null;
       if (reservedPlanning) unit.plannedTarget = unit.target;
       const destination = target ? route.find(({ at }) => distance(at, target.at, board) <= unit.range)
@@ -227,6 +236,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       unit.lastAt = at ? unit.at : null;
       if (!at) continue;
       unit.at = at;
+      if (unit.moveMs) unit.nextMove = elapsed + unit.moveMs;
       arrivals.push(unit);
     }
   }
@@ -234,6 +244,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   const strikes = new Map();
   state.shots = [];
   for (const unit of state.units) {
+    if (unit.effect === 'heal' || unit.effect === 'self-destruct') continue;
     const heavyFire = roles && unit.tier === '重型';
     const legacyCandidate = reservedPlanning && fireRevision === 1;
     const target = heavyFire || legacyCandidate ? inRangeShot(unit, state.units, state.buildings, board,
@@ -296,6 +307,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     const count = Math.min(building.unit.spawnCount ?? 1, building.unit.limit - live);
     for (let i = 0; i < count; i++) {
       const unit = { ...building.unit, id: ++state.sequence, at: building.exit, side: building.side,
+        ...(building.unit.moveMs ? { nextMove: elapsed + building.unit.moveMs } : {}),
         source: building.id, target: null, nextAttack: elapsed };
       state.units.push(unit);
       arrivals.push(unit);

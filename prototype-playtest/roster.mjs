@@ -1,4 +1,5 @@
-import { profileUnit } from './profiles.mjs';
+import { drawGroundUnit } from './ground-units.mjs';
+import { groundProfile, profileUnit } from './profiles.mjs';
 export const themes = Object.freeze(['人族', '神族', '虫族']);
 export const currentBoard = 'hex-14';
 export const squareExpansionBoard = 'square-14';
@@ -134,9 +135,13 @@ export function isRosterFull(roster, board) {
   return validBuilds(roster, board).length === 0 && roster.barracks.every(({ level }) => level === maxLevel);
 }
 
-export function drawUnit(theme, themeRoll, tierRoll) {
+function drawOrigin(theme, themeRoll) {
   const others = themes.filter((candidate) => candidate !== theme);
-  const origin = themeRoll < 0.5 ? theme : others[themeRoll < 0.75 ? 0 : 1];
+  return themeRoll < 0.5 ? theme : others[themeRoll < 0.75 ? 0 : 1];
+}
+
+export function drawUnit(theme, themeRoll, tierRoll) {
+  const origin = drawOrigin(theme, themeRoll);
   const tier = tierRoll < 0.5 ? 0 : tierRoll < 0.85 ? 1 : 2;
   return { origin, name: names[origin][tier], ...stats[tier] };
 }
@@ -144,7 +149,7 @@ export function drawUnit(theme, themeRoll, tierRoll) {
 export function unitStats(barracks) {
   const { hp, damage, ...unit } = barracks.unit;
   const scale = levelScale[barracks.level];
-  return { ...unit, hp: Math.floor(hp * scale / 100), damage: Math.floor(damage * scale / 100) };
+  return { ...unit, ...(unit.healing ? { healing: Math.floor(unit.healing * scale / 100) } : {}), hp: Math.floor(hp * scale / 100), damage: Math.floor(damage * scale / 100) };
 }
 
 export const barracksOnlyRules = 7;
@@ -183,8 +188,9 @@ export function enhanceRoster(roster, board, profile) {
     const { at, exit, exits } = builds[Math.floor(draw() * builds.length)];
     const themeRoll = draw();
     const tierRoll = draw();
-    const drawn = drawUnit(roster.theme, themeRoll, tierRoll);
-    const unit = profileUnit(profile, drawn);
+    const unit = profile === groundProfile
+      ? drawGroundUnit(drawOrigin(roster.theme, themeRoll), roster.barracks.length === 0, tierRoll, draw())
+      : profileUnit(profile, drawUnit(roster.theme, themeRoll, tierRoll));
     const entry = { at, exit, unit, level: 1, side: roster.side };
     const barracks = exits ? roster.barracks.map((built) => ({ ...built, exit: exits.get(keyAt(built.at)) })) : roster.barracks;
     return {

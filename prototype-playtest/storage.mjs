@@ -1,10 +1,11 @@
+import { groundProfile } from './profiles.mjs';
 import { previousCombatRules } from './battle.mjs';
 import { legacyBoard } from './roster.mjs';
 import { defaultDurations, legacyDurations } from './timing.mjs';
 import { betting, stakesFor } from './betting.mjs';
 import { advance, newSession, sessionVersion } from './round.mjs';
 
-const sessionKey = 'bet-arena.prototype.bet-threshold.v1';
+const sessionKey = 'bet-arena.prototype.sc-ground-v21.v1';
 
 function legacyRates(red, blue) {
   return { red: red > 0 ? 200 : null, blue: blue > 0 ? 200 : null };
@@ -46,7 +47,7 @@ export function updateSession(action = null) {
     const now = Date.now();
     const saved = localStorage.getItem(sessionKey);
     const original = saved ? JSON.parse(saved) : null;
-    const session = upgradeSession(original) ?? newSession(crypto.randomUUID(), now);
+    const session = upgradeSession(original) ?? newSession(crypto.randomUUID(), now, undefined, undefined, undefined, undefined, groundProfile);
     const update = action ? action(session, now) : { session: advance(session, now) };
     if (update.session !== original) localStorage.setItem(sessionKey, JSON.stringify(update.session));
     return { ...update, now };
