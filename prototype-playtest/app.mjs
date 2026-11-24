@@ -2,7 +2,7 @@ import { drawShots, barracksLabel, troopsByTile, unitName } from './board-displa
 import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
-import { fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
+import { battleRules, fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { betting, findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
@@ -18,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-base-defense.v1';
+const pendingKey = 'bet-arena.prototype.pending-building-health.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -128,7 +128,7 @@ function renderBoard(round, teams, frame, effects) {
     const roster = teams[side].roster;
     const weapon = round.combatRules >= baseDefenseRules ? (round.snapshot?.battle[side].baseAttack ?? baseAttack) : null;
     const defense = weapon ? `，射程${weapon.range}格，单次伤害${weapon.damage}，攻击间隔${weapon.attackMs / 1000}秒` : '';
-    markers.set(keyAt(map.base), { kind: 'base', symbol: roster.theme, range: weapon?.range,
+    markers.set(keyAt(map.base), { kind: 'base', symbol: roster.theme, range: weapon?.range, maxHp: battleRules.baseHp,
       label: `${teamName[side]}${roster.theme}主基地${defense}` });
     for (const { at, exit } of map.plots) {
       markers.set(keyAt(at), { kind: 'plot', symbol: '', label: `${teamName[side]}可建格` });
@@ -143,14 +143,13 @@ function renderBoard(round, teams, frame, effects) {
       }
       const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
       const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
-      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), level, range, side, label });
+      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), maxHp: battleRules.barracksHp, level, range, side, label });
     }
   }
   const troops = troopsByTile(frame?.units ?? []);
-  for (const { at, kind, side, hp } of frame?.buildings ?? []) {
+  for (const { at, hp } of frame?.buildings ?? []) {
     const key = keyAt(at);
-    const marker = markers.get(key);
-    markers.set(key, { ...marker, label: `${marker?.label ?? teamName[side] + kind}，建筑生命${hp}` });
+    markers.get(key).hp = hp;
   }
   const selectedGroups = [...(troops.get(selectedTile)?.values() ?? [])];
   const selectedMarker = frame?.terrain[selectedTile] === 'ruins' ? null : markers.get(selectedTile);
@@ -176,7 +175,13 @@ function renderBoard(round, teams, frame, effects) {
     const css = `cell ${land}${marker ? ` ${marker.kind}` : ''}${claimsLand && frame.terrain[key] === 'ruins' ? ' controlled-ruins' : ''}${troopClass}${changeLabelClass}${inRange ? ' in-range' : ''}${selectedTile === key ? ' selected' : ''}`;
     const changeLabel = change === 'build' ? '，新建兵营' : change === 'upgrade' ? '，刚升级' : '';
     const ownerLabel = teamName[land] ?? '中立';
-    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
+    const hp = marker?.hp ?? marker?.maxHp;
+    const healthLabel = marker?.maxHp ? `，建筑生命 ${hp}/${marker.maxHp}` : '';
+    const healthWidth = marker?.maxHp ? `${hp / marker.maxHp * 100}%` : '';
+    if (cell.style.getPropertyValue('--building-hp') !== healthWidth) {
+      cell.style.setProperty('--building-hp', healthWidth);
+    }
+    const label = `${row}行${col}列，${marker?.label ?? '普通格'}${healthLabel}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
     const signature = troopLabel || `${marker?.symbol ?? ''}/${marker?.level ?? ''}`;
     if (cell.dataset.content !== signature) {

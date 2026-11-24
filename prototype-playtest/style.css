@@ -123,3 +123,17 @@ main { width: min(100% - 1.25rem, 60rem); }
 .board .cell.barracks { align-content: center; justify-items: center; row-gap: 1px; }
 .building-name, .building-level { position: relative; line-height: 1; }
 .building-level { padding: 1px 3px; border-radius: 3px; color: #ffe69b; background: #19212e; font-size: clamp(9px, 2.6vw, 11px); font-variant-numeric: tabular-nums; }
+.board .cell.base::after, .board .cell.barracks::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: 2px;
+  left: 24%;
+  width: 52%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #82e5aa var(--building-hp), #33404a var(--building-hp));
+  box-shadow: 0 0 0 1px #0c1420;
+}
+.hex-board .cell.base::after, .hex-board .cell.barracks::after { top: 17%; }
+.board:not(.hex-board) .cell:is(.base, .barracks) { padding-top: 7px; }
