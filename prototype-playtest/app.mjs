@@ -198,14 +198,20 @@ function renderBoard(round, teams, frame, effects) {
         }
         if (groups.length > 4) chips.append('…');
         cell.append(chips);
-      } else if (marker?.level) {
+      } else if (marker?.maxHp) {
         const title = document.createElement('span');
         title.className = 'building-name';
         title.textContent = marker.symbol;
-        const grade = document.createElement('span');
-        grade.className = 'building-level';
-        grade.textContent = `${marker.level}级`;
-        cell.append(title, grade);
+        const bar = document.createElement('span');
+        bar.className = 'building-health';
+        bar.setAttribute('aria-hidden', 'true');
+        cell.append(bar, title);
+        if (marker.level) {
+          const grade = document.createElement('span');
+          grade.className = 'building-level';
+          grade.textContent = `${marker.level}级`;
+          cell.append(grade);
+        }
       } else cell.textContent = marker?.symbol ?? '';
     }
     if (cell.title !== label) {
