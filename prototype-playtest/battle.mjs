@@ -41,7 +41,12 @@ export function openingGround(board) {
   return owners;
 }
 
-function makeState(loadout, board, combatRules) {
+function initialHp(value, maximum) {
+  if (!Number.isInteger(value) || value < 1 || value > maximum) throw Error('初始生命超出范围');
+  return value;
+}
+
+function makeState(loadout, board, combatRules, gm) {
   const occupationIncludesSpecial = combatRules >= baseVictoryRules;
   const owners = openingGround(board);
   const terrain = Object.fromEntries(Object.keys(owners).map((key) => [key, 'ground']));
@@ -53,9 +58,10 @@ function makeState(loadout, board, combatRules) {
     const setup = loadout?.[side];
     if (setup?.side !== side || !Array.isArray(setup.base) || keyAt(setup.base) !== keyAt(map.base) ||
       !Array.isArray(setup.barracks) || setup.barracks.length > (hasExpansion(board) ? barracksLimit : map.plots.length) ||
-      !Array.isArray(setup.startingUnits) || setup.startingUnits.length !== starts.length) throw Error('Invalid battle loadout');
+      !Array.isArray(setup.startingUnits) || (!gm && setup.startingUnits.length !== starts.length)) throw Error('Invalid battle loadout');
     terrain[keyAt(map.base)] = 'base';
     const base = { id: ++sequence, side, at: map.base, hp: battleRules.baseHp, kind: 'base' };
+    if (gm) base.hp = initialHp(setup.hp, base.hp);
     if (combatRules >= baseDefenseRules) {
       const weapon = setup.baseAttack;
       if (!weapon || !usableStats({ ...weapon, hp: base.hp })) throw Error('Invalid base attack');
@@ -76,17 +82,18 @@ function makeState(loadout, board, combatRules) {
       used.add(keyAt(plot.at));
       terrain[keyAt(plot.at)] = 'barracks';
       delete owners[keyAt(plot.at)];
-      buildings.push({ id: ++sequence, side, at: plot.at, exit: barracks.exit, unit: barracks.unit,
-        hp: battleRules.barracksHp, kind: 'barracks', nextSpawn: barracks.unit.spawnMs ?? battleRules.spawnMs });
+      buildings.push({ id: ++sequence, side, at: plot.at, exit: barracks.exit, unit: barracks.unit, ...(gm ? { level: barracks.level } : {}),
+        hp: gm ? initialHp(barracks.hp, battleRules.barracksHp) : battleRules.barracksHp, kind: 'barracks', nextSpawn: barracks.unit.spawnMs ?? battleRules.spawnMs });
     }
     const startKeys = new Set(setup.startingUnits.map(({ at }) => keyAt(at)));
-    if (startKeys.size !== starts.length || starts.some((at) => !startKeys.has(keyAt(at)))) throw Error('Invalid starting positions');
+    if (!gm && (startKeys.size !== starts.length || starts.some((at) => !startKeys.has(keyAt(at))))) throw Error('Invalid starting positions');
     for (const starter of setup.startingUnits) {
-      if (starter.side !== side || !usableStats(starter)) throw Error('Invalid starting unit');
-      units.push({ ...starter, id: ++sequence, target: null, nextAttack: 0 });
+      if (starter.side !== side || !(gm ? validBarracksUnit(starter, combatRules) : usableStats(starter))) throw Error('Invalid starting unit');
+      units.push({ ...starter, ...(gm ? { hp: initialHp(starter.currentHp, starter.hp), maxHp: starter.hp, nextMove: starter.moveMs } : {}), id: ++sequence, target: null, nextAttack: 0 });
     }
   }
-  return { terrain, owners, buildings, units, sequence };
+  if (gm && units.some(u => !onBoard(u.at, board) || !passable(terrain, u.at, board))) throw Error('测试兵所在格不可通行');
+  return { terrain, owners, buildings, units, sequence, gm };
 }
 
 const passable = (terrain, at, board) => {
@@ -254,7 +261,8 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     const canHit = target && elapsed >= unit.nextAttack && distance(unit.at, target.at, board) <= unit.range;
     if (reservedPlanning) unit.hit = canHit ? target.id : null;
     if (!canHit) continue;
-    state.shots.push({ side: unit.side, name: unit.name, from: unit.at, to: target.at, range: unit.range });
+    state.shots.push({ side: unit.side, name: unit.name, from: unit.at, to: target.at, range: unit.range,
+      ...(state.gm ? { attackerId: unit.id, targetId: target.id, targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name+'营' : '基地'), power: directDamage(unit), before: target.hp } : {}) });
     const pending = strikes.get(target.id)?.damage ?? 0;
     strikes.set(target.id, { target, damage: pending + directDamage(unit) });
     // Keep the fractional cadence while firing continuously. Idle time cannot bank shots.
@@ -270,7 +278,8 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       if (!target) continue;
       base.target = target.id;
       base.nextAttack = elapsed + attackMs;
-      state.shots.push({ side: base.side, name: base.name, from: base.at, to: target.at, range, sourceKind: 'base' });
+      state.shots.push({ side: base.side, name: base.name, from: base.at, to: target.at, range, sourceKind: 'base',
+        ...(state.gm ? { attackerId: base.id, targetId: target.id, targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name+'营' : '基地'), power: damage, before: target.hp } : {}) });
       const pending = strikes.get(target.id)?.damage ?? 0;
       strikes.set(target.id, { target, damage: pending + damage });
     }
@@ -308,6 +317,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     for (let i = 0; i < count; i++) {
       const unit = { ...building.unit, id: ++state.sequence, at: building.exit, side: building.side,
         ...(building.unit.moveMs ? { nextMove: elapsed + building.unit.moveMs } : {}),
+        ...(state.gm ? { maxHp: building.unit.hp, level: building.level } : {}),
         source: building.id, target: null, nextAttack: elapsed };
       state.units.push(unit);
       arrivals.push(unit);
@@ -328,15 +338,16 @@ export function countGround(owners, terrain) {
 function frame(state, elapsed, combatRules) {
   return { elapsed, shots: state.shots, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
     buildings: state.buildings.map(({ id, side, kind, at, hp }) => ({ id, side, kind, at, hp })),
-    units: state.units.map(({ id, side, at, hp, name, range, source, plannedTarget, hit }) => ({ id, side, at, hp, name, range, source,
+    units: state.units.map(({ id, side, at, hp, maxHp, level, name, range, source, plannedTarget, hit }) => ({ id, side, at, hp, name, range, source,
+      ...(state.gm ? { maxHp, level } : {}),
       ...(combatRules >= splitPursuitRules ? { target: plannedTarget ?? null, hit: hit ?? null } : {}) })) };
 }
 
-export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision) {
+export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision, gm = false) {
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const usesBaseVictory = combatRules >= baseVictoryRules;
-    const state = makeState(loadout, board, combatRules);
+    const state = makeState(loadout, board, combatRules, gm);
     if (combatRules === damageTiebreakRules) state.damage = { red: 0, blue: 0 };
     const frames = [];
     let fallenBases = [];
