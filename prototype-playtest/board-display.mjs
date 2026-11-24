@@ -1,3 +1,4 @@
+import { groundUnits } from './ground-units.mjs';
 import { keyAt } from './roster.mjs';
 
 // Each entry pairs the barracks' two-character label with its soldier's glyph.
@@ -7,6 +8,7 @@ const labels = new Map(Object.entries({
   掘行虫: ['掘行', '掘'], 扣甲虫: ['扣甲', '甲'], 脊弩虫: ['脊弩', '脊'],
   跳虫: ['跳虫', '跳'], 狂热者: ['狂热', '狂'], 机枪兵: ['机枪', '枪'],
 }));
+for (const { name, label, glyph } of groundUnits) labels.set(name, [label, glyph]);
 export const barracksLabel = (name) => labels.get(name)?.[0] ?? Array.from(name).slice(0, 2).join('');
 export const glyphFor = (name) => labels.get(name)?.[1] ?? (!name || name === '基础卒' ? '卒' : Array.from(name)[0]);
 export const unitName = (name) => name || '基础卒';

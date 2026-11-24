@@ -37,3 +37,7 @@ python3 -m http.server 8766 --bind 127.0.0.1 --directory prototype-playtest
 [玩法总纲](requirements/overview.md) · [下注与封盘](requirements/02-betting/requirement.md) · [自动战斗](requirements/04-battle/requirement.md) · [棋盘界面](requirements/06-arena-ui/requirement.md)
 
 [兵种职责与射程](testing/runs/2026-11-24-unit-roles-sc-board-independent.md) · [兵营出兵](testing/runs/2026-11-24-barracks-only-independent.md) · [基地防守](testing/runs/2026-11-24-base-defense-independent.md) · [建筑血条及窄屏复测](testing/runs/2026-11-24-building-health-independent.md) · [百点门槛与跨轮设置](testing/runs/2026-11-24-bet-threshold-independent.md)
+
+## V2.1 基础出兵候选 · #39
+
+本分支沿用上面的本机启动命令（在当前分支根目录执行）。打开试玩页自动使用 19 种地面兵的基础出兵配置，在正常下注阶段触发建营和升级，封盘后可下载战局重演。范围伤害、治疗和自爆按后续技能计划接入。能力范围及复现见[实现记录](requirements/03-build-and-roster/implementation.md)。

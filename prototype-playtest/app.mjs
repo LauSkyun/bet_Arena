@@ -18,7 +18,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-bet-threshold.v1';
+const pendingKey = 'bet-arena.prototype.pending-sc-ground-v21.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -142,8 +142,10 @@ function renderBoard(round, teams, frame, effects) {
         const reserved = markers.get(exitKey)?.kind === 'plot';
         markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
       }
-      const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, directDamagePercent = 100 } = unitStats(barracks);
-      const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，直击伤害${Math.ceil(damage * directDamagePercent / 100)}，射程${range}格，攻击间隔${attackMs / 1000}秒，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
+      const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, effect, healing, directDamagePercent = 100 } = unitStats(barracks);
+      const attack = effect === 'heal' ? `治疗量${healing}（技能待接入）` : effect === 'self-destruct' ? `自爆伤害${damage}（技能待接入）`
+        : `直击伤害${Math.ceil(damage * directDamagePercent / 100)}，攻击间隔${attackMs / 1000}秒${['fan', 'line', 'splash'].includes(effect) ? '（范围技能待接入）' : ''}`;
+      const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，${attack}，射程${range}格，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
       markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), maxHp: battleRules.barracksHp, level, range, side, label });
     }
   }

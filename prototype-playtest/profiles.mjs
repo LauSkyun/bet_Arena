@@ -1,9 +1,11 @@
 import scUnits from './sc-units-v1.json' with { type: 'json' };
 
+export const groundProfile = 'sc-ground-v2.1-production';
 export const arenaProfile = 'arena-v1';
 export const scProfile = 'sc-sample-v1';
 export const scRangeProfile = 'sc-range-v1';
 export const profiles = Object.freeze({
+  [groundProfile]: 'V2.1 地面兵种 · 基础出兵',
   [arenaProfile]: '竞技场基准',
   [scProfile]: 'SC 基础数值',
   [scRangeProfile]: 'SC 数值 · 机枪兵射程强化',
