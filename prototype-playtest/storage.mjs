@@ -4,8 +4,9 @@ import { legacyBoard } from './roster.mjs';
 import { defaultDurations, legacyDurations } from './timing.mjs';
 import { betting, stakesFor } from './betting.mjs';
 import { advance, newSession, sessionVersion } from './round.mjs';
+import { adjustTestBalance } from './test-wallet.mjs';
 
-const sessionKey = 'bet-arena.prototype.sc-ground-v21.v1';
+export const sessionKey = 'bet-arena.prototype.sc-ground-v21.v1';
 
 function legacyRates(red, blue) {
   return { red: red > 0 ? 200 : null, blue: blue > 0 ? 200 : null };
@@ -20,7 +21,7 @@ function migrateResult(result, rates) {
 
 export function upgradeSession(saved) {
   if (!saved || saved.version === sessionVersion) return saved;
-  if (Number.isInteger(saved.version) && saved.version >= 13 && saved.version <= 15) return { ...saved, version: sessionVersion };
+  if (Number.isInteger(saved.version) && saved.version >= 13 && saved.version <= 16) return { ...saved, version: sessionVersion };
   // Sessions through v12 used a fixed 10-point threshold for every wager in the open round.
   saved = { ...saved, round: { ...saved.round, threshold: 10 }, nextThreshold: betting.threshold };
   // Older tabs reject this version before they can settle a round with newer rules.
@@ -57,4 +58,8 @@ export function updateSession(action = null) {
 
 export function resetSession() {
   return updateSession((session, now) => ({ session: newSession(crypto.randomUUID(), now, undefined, undefined, session.nextDurations, undefined, session.nextProfile, session.nextThreshold) }));
+}
+
+export function updateTestBalance(request) {
+  return updateSession((session, now) => adjustTestBalance(advance(session, now), request));
 }

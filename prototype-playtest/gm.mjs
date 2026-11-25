@@ -1,4 +1,5 @@
 import { groundAreaRules, groundHealingRules, groundSelfDestructRules } from './battle.mjs';
+import { setupTestWallet } from './gm-wallet.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { groundUnits } from './ground-units.mjs';
 import { barracksLabel, glyphFor } from './board-display.mjs';
@@ -121,7 +122,7 @@ action('start',run); action('restart',run); action('step',()=>{stop();step();});
 action('play',()=>{ if(timer) stop(); else timer=setInterval(()=>{step();render();},500); });
 action('back',()=>{stop();index=-1;replay=undefined;});
 action('new', () => {
-  if (!window.confirm('清空当前布阵，按最新规则新建测试局？')) return;
+  if (!window.confirm('清空双方测试兵和兵营，恢复默认基地并新建测试局？')) return;
   stop();
   round = newScenario();
   index = -1;
@@ -137,3 +138,4 @@ action('export',()=>{
   const a=document.createElement('a'); a.href=url;a.download='gm-ground-battle.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 render();
+setupTestWallet();
