@@ -8,6 +8,7 @@ export const baseVictoryRules = 4;
 export const splitPursuitRules = 5;
 const unitRoleRules = 6;
 export const groundProductionRules = 9;
+export const groundHealingRules = 10;
 export const currentCombatRules = baseDefenseRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
@@ -19,7 +20,7 @@ const usableStats = ({ hp, damage, range, attackMs, limit } = {}, needsLimit = f
   attackMs >= battleRules.stepMs && (!needsLimit || (Number.isSafeInteger(limit) && limit > 0 && limit <= 10));
 
 function validBarracksUnit(unit, rules) {
-  if (rules !== groundProductionRules || !unit) return usableStats(unit, true);
+  if (rules < groundProductionRules || !unit) return usableStats(unit, true);
   if (unit.effect === 'heal') return unit.damage === 0 && usableStats({ ...unit, damage: unit.healing }, true);
   if (unit.effect === 'self-destruct') return unit.attackMs === 0 && usableStats({ ...unit, attackMs: battleRules.stepMs }, true);
   return usableStats(unit, true);
@@ -121,12 +122,12 @@ function makeRoutes(terrain, board) {
   };
 }
 
-function pickTarget(unit, candidates, board, priority) {
+function pickTarget(unit, candidates, board, priority, keepLock = true) {
   const ordered = candidates.map((target) => ({ target, rank: priority(target), gap: distance(unit.at, target.at, board) }));
   ordered.sort((a, b) => a.rank - b.rank || a.gap - b.gap || a.target.id - b.target.id);
   const first = ordered[0];
   if (!first) return undefined;
-  const locked = ordered.find(({ target, rank }) => target.id === unit.target && rank === first.rank);
+  const locked = keepLock ? ordered.find(({ target, rank }) => target.id === unit.target && rank === first.rank) : undefined;
   return (locked ?? first).target;
 }
 
@@ -155,6 +156,18 @@ function chooseTarget(unit, units, buildings, route, board, reservedDamage, role
 }
 
 const rangedPriority = (target) => !target.kind ? 0 : target.kind === 'base' ? 1 : 2;
+
+function chooseHealTarget(medic, units, board, eligible) {
+  const wounded = units.filter((unit) => unit.side === medic.side && unit.id !== medic.id &&
+    unit.hp < unit.maxHp && eligible(unit));
+  return pickTarget(medic, wounded, board, (unit) => unit.hp / unit.maxHp, false);
+}
+
+function nextActionAt(unit, elapsed) {
+  // Keep fractional cadence without banking actions during idle time.
+  const due = elapsed - unit.nextAttack < battleRules.stepMs ? unit.nextAttack : elapsed;
+  return due + unit.attackMs;
+}
 
 function directDamage(unit) {
   return Math.ceil(unit.damage * (unit.directDamagePercent ?? 100) / 100);
@@ -223,12 +236,20 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   const arrivals = [];
   const roles = combatRules >= unitRoleRules;
   const reservedPlanning = combatRules >= splitPursuitRules;
+  const canHeal = combatRules >= groundHealingRules;
   if (elapsed === 0) arrivals.push(...state.units);
   else {
     const reservedDamage = reservedPlanning ? new Map() : undefined;
     const moves = state.units.map((unit) => {
       if (elapsed < (unit.nextMove ?? 0)) return { unit, at: null };
       const route = routes(unit.at, unit.side);
+      if (canHeal && unit.effect === 'heal') {
+        const target = chooseHealTarget(unit, state.units, board, (ally) =>
+          route.some(({ at }) => distance(at, ally.at, board) <= unit.range));
+        unit.plannedTarget = target?.id ?? null;
+        const destination = target && route.find(({ at }) => distance(at, target.at, board) <= unit.range);
+        return { unit, at: destination?.first };
+      }
       const target = chooseTarget(unit, state.units, state.buildings, route, board, reservedDamage, roles);
       if (reservedDamage && target && !target.kind && unit.effect !== 'self-destruct') reservedDamage.set(target.id, (reservedDamage.get(target.id) ?? 0) + directDamage(unit));
       unit.target = target?.id ?? null;
@@ -265,9 +286,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       ...(state.gm ? { attackerId: unit.id, targetId: target.id, targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name+'营' : '基地'), power: directDamage(unit), before: target.hp } : {}) });
     const pending = strikes.get(target.id)?.damage ?? 0;
     strikes.set(target.id, { target, damage: pending + directDamage(unit) });
-    // Keep the fractional cadence while firing continuously. Idle time cannot bank shots.
-    const due = elapsed - unit.nextAttack < battleRules.stepMs ? unit.nextAttack : elapsed;
-    unit.nextAttack = due + unit.attackMs;
+    unit.nextAttack = nextActionAt(unit, elapsed);
   }
   if (combatRules >= baseDefenseRules) {
     for (const base of state.buildings) {
@@ -284,9 +303,36 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       strikes.set(target.id, { target, damage: pending + damage });
     }
   }
-  for (const { target, damage } of strikes.values()) {
+  if (canHeal) {
+    // Target eligibility uses pre-action HP. The cap uses this beat's queued damage and healing.
+    const roomToHeal = (ally) => {
+      const pending = strikes.get(ally.id);
+      return ally.maxHp - ally.hp + (pending?.damage ?? 0) - (pending?.healing ?? 0);
+    };
+    for (const medic of state.units) {
+      if (medic.effect !== 'heal') continue;
+      medic.hit = null;
+      if (elapsed < medic.nextAttack) continue;
+      const target = chooseHealTarget(medic, state.units, board, (ally) =>
+        distance(medic.at, ally.at, board) <= medic.range && roomToHeal(ally) > 0);
+      if (!target) continue;
+      const power = Math.min(medic.healing, roomToHeal(target));
+      const pending = strikes.get(target.id) ?? { target, damage: 0 };
+      strikes.set(target.id, { ...pending, healing: (pending.healing ?? 0) + power });
+      state.shots.push({ effect: 'heal', side: medic.side, name: medic.name, from: medic.at, to: target.at,
+        range: medic.range, attackerId: medic.id, targetId: target.id, targetName: target.name, power, before: target.hp });
+      medic.hit = target.id;
+      medic.nextAttack = nextActionAt(medic, elapsed);
+    }
+  }
+  for (const { target, damage, healing = 0 } of strikes.values()) {
     if (state.damage) state.damage[enemy(target.side)] += Math.min(target.hp, damage);
-    target.hp -= damage;
+    target.hp = target.hp - damage + healing;
+  }
+  if (canHeal) {
+    for (const shot of state.shots) {
+      if (shot.effect === 'heal') shot.after = Math.max(0, strikes.get(shot.targetId).target.hp);
+    }
   }
   for (const building of state.buildings) {
     if (building.hp > 0) continue;
@@ -317,7 +363,8 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     for (let i = 0; i < count; i++) {
       const unit = { ...building.unit, id: ++state.sequence, at: building.exit, side: building.side,
         ...(building.unit.moveMs ? { nextMove: elapsed + building.unit.moveMs } : {}),
-        ...(state.gm ? { maxHp: building.unit.hp, level: building.level } : {}),
+        ...(canHeal || state.gm ? { maxHp: building.unit.hp } : {}),
+        ...(state.gm ? { level: building.level } : {}),
         source: building.id, target: null, nextAttack: elapsed };
       state.units.push(unit);
       arrivals.push(unit);

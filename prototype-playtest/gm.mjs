@@ -1,16 +1,18 @@
+import { groundHealingRules } from './battle.mjs';
 import { groundUnits } from './ground-units.mjs';
 import { barracksLabel, glyphFor } from './board-display.mjs';
 import { boardColumns, boardRows, expansionExits, keyAt, openingOwner } from './roster.mjs';
 import { teams, addBuilding, addSoldier, legalSites, mirrorScenario, newScenario, runScenario, setBuildingLevel, setHealth } from './gm-scenario.mjs';
 
 const el = id => document.getElementById(id);
-const key = 'bet-arena.gm.ground-production.v1';
+const oldKey = 'bet-arena.gm.ground-production.v1';
+const key = 'bet-arena.gm.ground-healing.v1';
 const teamName = { red: '红', blue: '蓝' };
 let round = newScenario(), index = -1, replay, timer, selected = [1,4];
 let objects = [];
 function save() { localStorage.setItem(key, JSON.stringify({ round, index, selected })); }
 try {
-  const stored = JSON.parse(localStorage.getItem(key));
+  const stored = JSON.parse(localStorage.getItem(key) ?? localStorage.getItem(oldKey));
   if (stored) {
     round = stored.round; selected = stored.selected; index = stored.index;
     if (index >= 0) replay = runScenario(round);
@@ -75,13 +77,16 @@ function render() {
   const last = !editing && index===replay.frames.length-1;
   el('start').disabled=!editing; el('restart').disabled=editing; el('play').disabled=editing||last; el('step').disabled=editing||last; el('back').disabled=editing;
   el('play').textContent=timer?'暂停':'播放';
-  el('state').textContent=editing?'布阵中':`${frame.elapsed/1000} 秒 · 红 ${frame.scores.red} 格，蓝 ${frame.scores.blue} 格${last?' · '+({red:'红胜',blue:'蓝胜',draw:'平局'}[replay.result.winner]):''}`;
+  const status = editing ? '布阵中' : `${frame.elapsed/1000} 秒 · 红 ${frame.scores.red} 格，蓝 ${frame.scores.blue} 格${last?' · '+({red:'红胜',blue:'蓝胜',draw:'平局'}[replay.result.winner]):''}`;
+  el('state').textContent = round.combatRules >= groundHealingRules ? status : `${status} · 本局沿用旧规则，治疗未启用`;
   el('hits').replaceChildren();
   for (const shot of frame?.shots ?? []) {
     if (!atCell(shot.from) && !atCell(shot.to)) continue;
     const victim = all.find(o=>o.id===shot.targetId);
     const item = document.createElement('li');
-    item.textContent = `${teamName[shot.side]}${shot.name} #${shot.attackerId} → ${keyAt(shot.to)} 的${shot.targetName} #${shot.targetId}，攻击 ${shot.power}，目标本拍生命 ${shot.before} → ${victim?.hp ?? 0}`;
+    const effect = shot.effect === 'heal' ? '实际治疗' : '攻击';
+    const after = shot.after ?? victim?.hp ?? 0;
+    item.textContent = `${teamName[shot.side]}${shot.name} #${shot.attackerId} → ${keyAt(shot.to)} 的${shot.targetName} #${shot.targetId}，${effect} ${shot.power}，目标本拍生命 ${shot.before} → ${after}`;
     el('hits').append(item);
   }
   save();
@@ -109,6 +114,15 @@ el('side').onchange=render;
 action('start',run); action('restart',run); action('step',()=>{stop();step();});
 action('play',()=>{ if(timer) stop(); else timer=setInterval(()=>{step();render();},500); });
 action('back',()=>{stop();index=-1;replay=undefined;});
+action('new', () => {
+  if (!window.confirm('清空当前布阵，按最新规则新建测试局？')) return;
+  stop();
+  round = newScenario();
+  index = -1;
+  replay = undefined;
+  selected = [1, 4];
+  el('hp').value = '';
+});
 action('mirror',()=>{stop();round=mirrorScenario(round);index=-1;replay=undefined;selected=[boardRows(round.board)+1-selected[0],boardColumns+1-selected[1]];});
 action('export',()=>{
   const report = { format: 'bet-arena/gm-battle', version: 1, round: { ...round, sealed: index >= 0 },

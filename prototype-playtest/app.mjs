@@ -2,7 +2,7 @@ import { drawShots, barracksLabel, troopsByTile, unitName } from './board-displa
 import { arenaProfile, profiles } from './profiles.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
-import { battleRules, fireRevisionFor, baseVictoryRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
+import { battleRules, fireRevisionFor, baseVictoryRules, groundHealingRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
 import { findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { placeBet, saveRoundDurations, view } from './round.mjs';
@@ -143,7 +143,8 @@ function renderBoard(round, teams, frame, effects) {
         markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
       }
       const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, effect, healing, directDamagePercent = 100 } = unitStats(barracks);
-      const attack = effect === 'heal' ? `治疗量${healing}（技能待接入）` : effect === 'self-destruct' ? `自爆伤害${damage}（技能待接入）`
+      const treatment = round.combatRules >= groundHealingRules ? `单次治疗${healing}，间隔${attackMs / 1000}秒` : '本局未启用治疗';
+      const attack = effect === 'heal' ? treatment : effect === 'self-destruct' ? `自爆伤害${damage}（技能待接入）`
         : `直击伤害${Math.ceil(damage * directDamagePercent / 100)}，攻击间隔${attackMs / 1000}秒${['fan', 'line', 'splash'].includes(effect) ? '（范围技能待接入）' : ''}`;
       const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，${attack}，射程${range}格，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
       markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), maxHp: battleRules.barracksHp, level, range, side, label });
@@ -228,11 +229,14 @@ function renderBoard(round, teams, frame, effects) {
   inspector.hidden = !selectedAt;
   if (selectedAt) {
     const cell = cells.get(selectedTile);
-    const outgoing = new Set(shots.filter(shot => keyAt(shot.from) === selectedTile).map(shot =>
+    const hits = new Set(shots.filter(shot => shot.effect !== 'heal' && keyAt(shot.from) === selectedTile).map(shot =>
       `${teamName[shot.side]}${unitName(shot.name)} → ${shot.to[0]}行${shot.to[1]}列（实际${distance(shot.from, shot.to, layout)}格）`));
+    const heals = shots.filter(shot => shot.effect === 'heal' && (keyAt(shot.from) === selectedTile || keyAt(shot.to) === selectedTile)).map(shot =>
+      `${teamName[shot.side]}${shot.name}治疗${shot.to[0]}行${shot.to[1]}列的${shot.targetName}，实际回复${shot.power}，本拍生命 ${shot.before} → ${shot.after}`);
     const parts = [cell.title];
     if (maxRange) parts.push(`高亮为${selectedGroups.length ? '格内单位的最大射程' : selectedMarker?.kind === 'base' ? '基地防守射程' : '从兵营格预览的兵种射程'} ${maxRange} 格`);
-    if (outgoing.size) parts.push(`本拍命中：${[...outgoing].join('、')}`);
+    if (hits.size) parts.push(`本拍命中：${[...hits].join('、')}`);
+    if (heals.length) parts.push(...heals);
     inspector.textContent = parts.join('。');
   }
   if (lastFrame !== frame) {
