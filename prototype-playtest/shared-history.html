@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我的历史 · 竞猜竞技场</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="account-history">
+    <header class="account-header">
+      <div><h1>我的历史</h1><span class="subheading" id="history-account"></span></div>
+      <nav class="account-nav"><a href="/arena/">回到竞技场</a><a href="/replay/">导入重播</a></nav>
+    </header>
+    <section class="panel">
+      <p id="history-notice" class="notice" role="status">正在读取历史。</p>
+      <div id="history-scroll" class="history-scroll" tabindex="0" role="region" aria-label="已结算轮次" hidden>
+        <table>
+          <thead><tr><th scope="col">轮次</th><th scope="col">结算时间</th><th scope="col">赛果</th><th scope="col">红方实扣</th><th scope="col">蓝方实扣</th><th scope="col">返还</th><th scope="col">净收益</th><th scope="col">结算后余额</th><th scope="col">战局包</th></tr></thead>
+          <tbody id="history-rows"></tbody>
+        </table>
+      </div>
+      <button id="history-more" type="button" class="secondary" hidden>加载更早记录</button>
+    </section>
+  </main>
+  <script type="module" src="./shared-history.mjs"></script>
+</body>
+</html>

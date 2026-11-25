@@ -8,7 +8,9 @@ import { findReceipt, isFull, referenceForRound, sides, stakesFor } from './bett
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { replayForRound, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
-import { archivedBetResult, archiveRoundNumbers, exportArchivedRound, resetSession, submitArchivedBet, updateSession } from './storage.mjs';
+const shared = document.body.hasAttribute('data-shared-arena');
+const storage = shared ? await import('./shared-client.mjs') : await import('./storage.mjs');
+const { archivedBetResult, archiveRoundNumbers, exportArchivedRound, submitArchivedBet, updateSession } = storage;
 
 const element = (id) => document.getElementById(id);
 const teamName = { red: '红队', blue: '蓝队' };
@@ -19,7 +21,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-sc-ground-v21.v1';
+const pendingKey = shared ? 'bet-arena.shared.pending.v1' : 'bet-arena.prototype.pending-sc-ground-v21.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -46,7 +48,14 @@ let savingTiming = false;
 for (const input of [betSeconds, battleSeconds]) input.max = String(secondsLimit);
 let displayed;
 let polling = false;
+const setAccount = shared ? storage.mountAccountNav() : null;
+if (shared) {
+  element('reset').hidden = true;
+  element('timing-settings').hidden = true;
+}
 let submitting = false;
+let latestBet = 0;
+const disconnected = '连接中断，正在重连。';
 let pendingCheck = true;
 
 const chosenSide = () => sideInputs.find((input) => input.checked)?.value;
@@ -290,7 +299,7 @@ function render(session, now) {
   saveBattleData.disabled = false;
   copyPreviousData.hidden = !previous?.battleData;
   savePreviousData.hidden = copyPreviousData.hidden;
-  renderTiming(session);
+  if (!shared) renderTiming(session);
   element('round').textContent = String(round.number);
   element('balance').textContent = String(session.balance);
   element('time-label').textContent = clockLabel[stage.phase];
@@ -348,16 +357,24 @@ function render(session, now) {
 }
 
 async function refresh() {
-  if (polling) return;
+  if (polling || (shared && submitting)) return;
   polling = true;
+  const betAtStart = latestBet;
   try {
-    const { session, now } = await updateSession();
+    let { session, now, account } = await updateSession();
+    if (shared && (submitting || betAtStart !== latestBet)) return;
+    if (account) setAccount(account);
+    if (shared && element('notice').textContent === disconnected) element('notice').textContent = '';
     render(session, now);
     if (pendingCheck && !submitting) {
       const saved = sessionStorage.getItem(pendingKey);
       if (saved) {
         const request = JSON.parse(saved);
         const archived = await archivedBetResult(request);
+        if (shared && archived?.session) {
+          ({ session, now } = archived);
+          render(session, now);
+        }
         const receipt = archived?.receipt ?? findReceipt(session, request);
         element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
         sessionStorage.removeItem(pendingKey);
@@ -367,7 +384,7 @@ async function refresh() {
     }
   } catch {
     submit.disabled = true;
-    element('notice').textContent = '读取试玩记录失败，正在重新读取。';
+    element('notice').textContent = shared ? disconnected : '读取试玩记录失败，正在重新读取。';
   } finally {
     polling = false;
   }
@@ -388,11 +405,13 @@ form.addEventListener('submit', async (event) => {
     return;
   }
   const request = { sessionId: session.id, roundNumber: session.round.number, side, amount, requestId: crypto.randomUUID() };
+  latestBet++;
   submitting = true;
   renderControls(session, phase);
   try {
     sessionStorage.setItem(pendingKey, JSON.stringify(request));
     const response = await submitArchivedBet(request);
+    if (response.account) setAccount(response.account);
     render(response.session, response.now);
     element('notice').textContent = response.receipt ? receiptMessage(response.receipt) : response.error;
     sessionStorage.removeItem(pendingKey);
@@ -506,10 +525,10 @@ timingForm.addEventListener('submit', async (event) => {
   }
 });
 
-element('reset').addEventListener('click', async () => {
+if (!shared) element('reset').addEventListener('click', async () => {
   if (!window.confirm('开始新的试玩会话并把测试积分重置为 10,000 点？')) return;
   try {
-    const { session, now } = await resetSession();
+    const { session, now } = await storage.resetSession();
     sessionStorage.removeItem(pendingKey);
     timingDraft = false;
     element('timing-feedback').textContent = '';

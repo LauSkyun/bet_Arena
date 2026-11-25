@@ -52,6 +52,7 @@ function staticFile(request, response, pathname) {
   if (!existsSync(file)) return false;
   let bytes = readFileSync(file);
   if (pathname === '/arena/') bytes = bytes.toString().replace('<body>', '<body data-shared-arena>');
+  if (pathname === '/replay/') bytes = bytes.toString().replace('<a href="./gm.html">返回 GM</a>', '<a href="/history/">回到我的历史</a>');
   response.writeHead(200, { 'Content-Type': `${contentTypes[name.split('.').at(-1)]}; charset=utf-8` });
   response.end(request.method === 'HEAD' ? undefined : bytes);
   return true;
@@ -94,8 +95,12 @@ export function createArenaServer({ arena, secureCookies = false }) {
       } else if (method === 'GET' && pathname === '/api/archive') {
         const number = numberParam(searchParams.get('round'));
         if (!number) return json(response, 400, { error: '轮次无效。' });
-        data = arena.archive(token, number);
+        data = arena.archive(token, number, searchParams.get('uid'));
         if (data && !data.archive) return json(response, 404, { error: '查不到这局存档。' });
+        if (data && searchParams.get('download') === '1') {
+          response.setHeader('Content-Disposition', `attachment; filename="bet-data-round-${number}.json"`);
+          return json(response, 200, data.archive);
+        }
       } else {
         if (['GET', 'HEAD'].includes(method) && staticFile(request, response, pathname)) return;
         return json(response, 404, { error: '入口不可用。' });

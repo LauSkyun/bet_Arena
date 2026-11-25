@@ -176,3 +176,18 @@ main.gm { width: min(100% - 1.25rem, 76rem); }
   .gm-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "board" "log" "controls"; }
   .battle-log-scroll { max-block-size: 15rem; }
 }
+.account-login { max-width: 28rem; }
+.account-login-form { display: grid; gap: .6rem; }
+.account-login-form input { min-width: 0; min-height: 44px; border: 1px solid #5e7597; border-radius: .5rem; padding: .4rem .6rem; font: inherit; }
+.account-login-form p { margin: 0; }
+.account-header { flex-wrap: wrap; }
+.account-header .subheading { overflow-wrap: anywhere; }
+.account-nav { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; }
+.account-nav a, .account-history a { color: #a3f3eb; }
+.history-scroll { overflow-x: auto; }
+.history-scroll:focus-visible { outline: 2px solid #a3f3eb; }
+.history-scroll table { border-collapse: collapse; width: 100%; font-size: .9rem; white-space: nowrap; }
+.history-scroll th, .history-scroll td { padding: .55rem; text-align: right; border-bottom: 1px solid #35415a; }
+.history-scroll th { color: #b9c5d9; }
+.history-scroll td { font-variant-numeric: tabular-nums; }
+#history-more { margin-top: .75rem; }

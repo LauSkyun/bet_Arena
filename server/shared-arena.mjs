@@ -195,7 +195,8 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       const rows = historyPage.all(uid, before).map(parse);
       return { account: { uid, name }, entries: rows.slice(0, 20), next: rows.length > 20 ? rows[19].round : null };
     }),
-    archive: (token, number) => authorized(token, (state, { uid }, now) => {
+    archive: (token, number, expectedUid) => authorized(token, (state, { uid }, now) => {
+      if (expectedUid != null && uid !== expectedUid) return { archive: null };
       const current = number === state.round.number;
       const settlement = parse(roundHistory.get(uid, number));
       const round = current ? state.round : settlement ? parse(archivedRound.get(number)) : null;
