@@ -5,7 +5,7 @@ import { barracksLabel, glyphFor } from './board-display.mjs';
 import { groundProfile } from './profiles.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
 import { battleDataFor } from './battle-data.mjs';
-import { groundHealingRules, groundProductionRules, simulateBattle } from './battle.mjs';
+import { groundAreaRules, groundHealingRules, groundProductionRules, simulateBattle } from './battle.mjs';
 import { upgradeSession } from './storage.mjs';
 import { themes, unitStats } from './roster.mjs';
 
@@ -66,13 +66,14 @@ test('a sealed, exported V2.1 battle replays identically after serialization and
   assert.deepEqual(replay, simulate(data));
   assert.notEqual(replay.result.winner, 'void');
   assert.equal(data.profile, groundProfile);
-  assert.equal(data.combatRules, groundHealingRules);
+  assert.equal(data.combatRules, groundAreaRules);
   assert.equal(replay.result.winner, data.result.winner);
   assert.deepEqual(replay.result.scores, data.result.scores);
 });
 
 test('normal ground wagers produce a medic that heals, and v13 keeps its locked rules and threshold', () => {
   const current = start(24);
+  current.round.combatRules = groundHealingRules;
   const stake = (session, side) => placeBet(session, 1, {
     sessionId: session.id, roundNumber: 1, side, amount: 500, requestId: side,
   }).session;
@@ -94,6 +95,14 @@ test('normal ground wagers produce a medic that heals, and v13 keeps its locked 
   assert.ok(oldReplay.frames.every(({ shots }) => shots.every(({ effect }) => effect !== 'heal')));
   const next = advance(migrated, timeline(migrated.round).next);
   assert.equal(next.previous.battleData.combatRules, groundProductionRules);
-  assert.equal(next.round.combatRules, groundHealingRules);
+  assert.equal(next.round.combatRules, groundAreaRules);
   assert.equal(next.round.threshold, 125);
+
+  const healingSave = { ...locked, version: 14, nextThreshold: 135 };
+  const migratedHealing = upgradeSession(healingSave);
+  assert.deepEqual(migratedHealing, { ...healingSave, version: current.version });
+  const nextAfterHealing = advance(migratedHealing, timeline(migratedHealing.round).next);
+  assert.equal(nextAfterHealing.previous.battleData.combatRules, groundHealingRules);
+  assert.equal(nextAfterHealing.round.combatRules, groundAreaRules);
+  assert.equal(nextAfterHealing.round.threshold, 135);
 });

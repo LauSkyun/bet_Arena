@@ -1,0 +1,193 @@
+{
+  "format": "bet-arena/gm-battle",
+  "version": 1,
+  "round": {
+    "seed": 37,
+    "number": 1,
+    "sealed": true,
+    "board": "hex-14",
+    "profile": "sc-ground-v2.1-production",
+    "combatRules": 11,
+    "fireRevision": 2,
+    "durations": {
+      "battleMs": 40000
+    },
+    "loadout": {
+      "red": {
+        "side": "red",
+        "theme": "人族",
+        "base": [
+          1,
+          4
+        ],
+        "hp": 240,
+        "maxHp": 240,
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [],
+        "startingUnits": [
+          {
+            "unitId": 17,
+            "origin": "神族",
+            "name": "巨像",
+            "label": "巨像",
+            "glyph": "巨",
+            "quality": "金",
+            "effect": "line",
+            "range": 3,
+            "attackMs": 1000,
+            "moveMs": 1000,
+            "spawnMs": 9000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 200,
+            "damage": 30,
+            "level": 1,
+            "side": "red",
+            "at": [
+              7,
+              4
+            ],
+            "currentHp": 200
+          }
+        ]
+      },
+      "blue": {
+        "side": "blue",
+        "theme": "人族",
+        "base": [
+          14,
+          4
+        ],
+        "hp": 240,
+        "maxHp": 240,
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [],
+        "startingUnits": [
+          {
+            "unitId": 25,
+            "origin": "虫族",
+            "name": "猛犸",
+            "label": "猛犸",
+            "glyph": "犸",
+            "quality": "金",
+            "effect": "single",
+            "range": 1,
+            "attackMs": 500,
+            "moveMs": 500,
+            "spawnMs": 14000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 280,
+            "damage": 28,
+            "level": 1,
+            "side": "blue",
+            "at": [
+              7,
+              5
+            ],
+            "currentHp": 280
+          },
+          {
+            "unitId": 25,
+            "origin": "虫族",
+            "name": "猛犸",
+            "label": "猛犸",
+            "glyph": "犸",
+            "quality": "金",
+            "effect": "single",
+            "range": 1,
+            "attackMs": 500,
+            "moveMs": 500,
+            "spawnMs": 14000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 280,
+            "damage": 28,
+            "level": 1,
+            "side": "blue",
+            "at": [
+              7,
+              6
+            ],
+            "currentHp": 280
+          },
+          {
+            "unitId": 25,
+            "origin": "虫族",
+            "name": "猛犸",
+            "label": "猛犸",
+            "glyph": "犸",
+            "quality": "金",
+            "effect": "single",
+            "range": 1,
+            "attackMs": 500,
+            "moveMs": 500,
+            "spawnMs": 14000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 280,
+            "damage": 28,
+            "level": 1,
+            "side": "blue",
+            "at": [
+              7,
+              7
+            ],
+            "currentHp": 280
+          },
+          {
+            "unitId": 25,
+            "origin": "虫族",
+            "name": "猛犸",
+            "label": "猛犸",
+            "glyph": "犸",
+            "quality": "金",
+            "effect": "single",
+            "range": 1,
+            "attackMs": 500,
+            "moveMs": 500,
+            "spawnMs": 14000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 280,
+            "damage": 28,
+            "level": 1,
+            "side": "blue",
+            "at": [
+              8,
+              5
+            ],
+            "currentHp": 280
+          }
+        ]
+      }
+    }
+  },
+  "elapsedMs": 0,
+  "result": {
+    "winner": "blue",
+    "scores": {
+      "red": 26,
+      "blue": 30
+    },
+    "durationMs": 40000,
+    "fallenBases": [
+      "red"
+    ],
+    "endedAtMs": 4500,
+    "decidedBy": "base"
+  }
+}

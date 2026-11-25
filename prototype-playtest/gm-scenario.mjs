@@ -1,4 +1,4 @@
-import { battleRules, currentFireRevision, groundHealingRules, simulateBattle } from './battle.mjs';
+import { battleRules, currentFireRevision, groundAreaRules, simulateBattle } from './battle.mjs';
 import { groundUnits } from './ground-units.mjs';
 import { groundProfile } from './profiles.mjs';
 import { baseAttack, boardColumns, boardRows, currentBoard, expansionExits, keyAt, mapFor, maxLevel, newRoster, onBoard, unitStats, validBuilds } from './roster.mjs';
@@ -10,7 +10,7 @@ export function newScenario(seed = 37) {
     loadout[side] = { side, theme: newRoster(side, seed + i).theme, base: mapFor(side).base, hp: battleRules.baseHp,
       maxHp: battleRules.baseHp, baseAttack: { ...baseAttack }, barracks: [], startingUnits: [] };
   }
-  return { seed, number: 1, sealed: true, board: currentBoard, profile: groundProfile, combatRules: groundHealingRules,
+  return { seed, number: 1, sealed: true, board: currentBoard, profile: groundProfile, combatRules: groundAreaRules,
     fireRevision: currentFireRevision, durations: { battleMs: 40000 }, loadout };
 }
 export function legalSites(round, side) {

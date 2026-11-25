@@ -1,4 +1,5 @@
 import { baseDefenseRules, startingPositions, barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
+import { groundAreaLabels, isGroundTarget, secondaryGroundTargets } from './ground-area.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
@@ -9,6 +10,7 @@ export const splitPursuitRules = 5;
 const unitRoleRules = 6;
 export const groundProductionRules = 9;
 export const groundHealingRules = 10;
+export const groundAreaRules = 11;
 export const currentCombatRules = baseDefenseRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
@@ -173,6 +175,14 @@ function directDamage(unit) {
   return Math.ceil(unit.damage * (unit.directDamagePercent ?? 100) / 100);
 }
 
+function recordAttack(state, strikes, attacker, target, range, power, metadata, showDetails) {
+  state.shots.push({ side: attacker.side, name: attacker.name, from: attacker.at, to: target.at, range, ...metadata,
+    ...(showDetails ? { attackerId: attacker.id, targetId: target.id,
+      targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name + '营' : '基地'), power, before: target.hp } : {}) });
+  const damage = (strikes.get(target.id)?.damage ?? 0) + power;
+  strikes.set(target.id, { target, damage });
+}
+
 function inRangeShot(unit, units, buildings, board, priority) {
   const candidates = [...units, ...buildings].filter((target) => target.side !== unit.side &&
     distance(unit.at, target.at, board) <= Math.min(unit.range, target.id === unit.target ? unit.range : unit.sense ?? unit.range));
@@ -237,6 +247,9 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   const roles = combatRules >= unitRoleRules;
   const reservedPlanning = combatRules >= splitPursuitRules;
   const canHeal = combatRules >= groundHealingRules;
+  const canUseArea = combatRules >= groundAreaRules;
+  const unitTargets = canUseArea ? state.units.filter(isGroundTarget) : state.units;
+  const showAttackDetails = state.gm || canUseArea;
   if (elapsed === 0) arrivals.push(...state.units);
   else {
     const reservedDamage = reservedPlanning ? new Map() : undefined;
@@ -244,13 +257,13 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       if (elapsed < (unit.nextMove ?? 0)) return { unit, at: null };
       const route = routes(unit.at, unit.side);
       if (canHeal && unit.effect === 'heal') {
-        const target = chooseHealTarget(unit, state.units, board, (ally) =>
+        const target = chooseHealTarget(unit, unitTargets, board, (ally) =>
           route.some(({ at }) => distance(at, ally.at, board) <= unit.range));
         unit.plannedTarget = target?.id ?? null;
         const destination = target && route.find(({ at }) => distance(at, target.at, board) <= unit.range);
         return { unit, at: destination?.first };
       }
-      const target = chooseTarget(unit, state.units, state.buildings, route, board, reservedDamage, roles);
+      const target = chooseTarget(unit, unitTargets, state.buildings, route, board, reservedDamage, roles);
       if (reservedDamage && target && !target.kind && unit.effect !== 'self-destruct') reservedDamage.set(target.id, (reservedDamage.get(target.id) ?? 0) + directDamage(unit));
       unit.target = target?.id ?? null;
       if (reservedPlanning) unit.plannedTarget = unit.target;
@@ -273,34 +286,37 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   state.shots = [];
   for (const unit of state.units) {
     if (unit.effect === 'heal' || unit.effect === 'self-destruct') continue;
+    const areaEffect = canUseArea && Object.hasOwn(groundAreaLabels, unit.effect);
     const heavyFire = roles && unit.tier === '重型';
     const legacyCandidate = reservedPlanning && fireRevision === 1;
-    const target = heavyFire || legacyCandidate ? inRangeShot(unit, state.units, state.buildings, board,
+    const target = areaEffect || heavyFire || legacyCandidate ? inRangeShot(unit, unitTargets, state.buildings, board,
       heavyFire ? rangedPriority : (target) => Number(Boolean(target.kind)))
-      : chooseTarget(unit, state.units, state.buildings, routes(unit.at, unit.side), board);
+      : chooseTarget(unit, unitTargets, state.buildings, routes(unit.at, unit.side), board);
     if (!heavyFire && !legacyCandidate) unit.target = target?.id ?? null;
     const canHit = target && elapsed >= unit.nextAttack && distance(unit.at, target.at, board) <= unit.range;
     if (reservedPlanning) unit.hit = canHit ? target.id : null;
     if (!canHit) continue;
-    state.shots.push({ side: unit.side, name: unit.name, from: unit.at, to: target.at, range: unit.range,
-      ...(state.gm ? { attackerId: unit.id, targetId: target.id, targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name+'营' : '基地'), power: directDamage(unit), before: target.hp } : {}) });
-    const pending = strikes.get(target.id)?.damage ?? 0;
-    strikes.set(target.id, { target, damage: pending + directDamage(unit) });
+    const power = areaEffect ? unit.damage : directDamage(unit);
+    recordAttack(state, strikes, unit, target, unit.range, power,
+      areaEffect ? { effect: unit.effect, primary: true } : {}, showAttackDetails);
+    if (areaEffect) {
+      const secondaryPower = unit.effect === 'splash' ? Math.floor(power / 2) : power;
+      for (const victim of secondaryGroundTargets(unit, target, unitTargets, board)) {
+        recordAttack(state, strikes, unit, victim, unit.range, secondaryPower, { effect: unit.effect, primary: false }, showAttackDetails);
+      }
+    }
     unit.nextAttack = nextActionAt(unit, elapsed);
   }
   if (combatRules >= baseDefenseRules) {
     for (const base of state.buildings) {
       if (!base.weapon || elapsed < base.nextAttack) continue;
       const { range, damage, attackMs } = base.weapon;
-      const enemies = state.units.filter(unit => unit.side !== base.side && distance(base.at, unit.at, board) <= range);
+      const enemies = unitTargets.filter(unit => unit.side !== base.side && distance(base.at, unit.at, board) <= range);
       const target = pickTarget(base, enemies, board, () => 0);
       if (!target) continue;
       base.target = target.id;
       base.nextAttack = elapsed + attackMs;
-      state.shots.push({ side: base.side, name: base.name, from: base.at, to: target.at, range, sourceKind: 'base',
-        ...(state.gm ? { attackerId: base.id, targetId: target.id, targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name+'营' : '基地'), power: damage, before: target.hp } : {}) });
-      const pending = strikes.get(target.id)?.damage ?? 0;
-      strikes.set(target.id, { target, damage: pending + damage });
+      recordAttack(state, strikes, base, target, range, damage, { sourceKind: 'base' }, showAttackDetails);
     }
   }
   if (canHeal) {
@@ -313,7 +329,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
       if (medic.effect !== 'heal') continue;
       medic.hit = null;
       if (elapsed < medic.nextAttack) continue;
-      const target = chooseHealTarget(medic, state.units, board, (ally) =>
+      const target = chooseHealTarget(medic, unitTargets, board, (ally) =>
         distance(medic.at, ally.at, board) <= medic.range && roomToHeal(ally) > 0);
       if (!target) continue;
       const power = Math.min(medic.healing, roomToHeal(target));
@@ -330,8 +346,16 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     target.hp = target.hp - damage + healing;
   }
   if (canHeal) {
+    const remaining = new Map();
     for (const shot of state.shots) {
-      if (shot.effect === 'heal') shot.after = Math.max(0, strikes.get(shot.targetId).target.hp);
+      if (shot.effect !== 'heal' && !canUseArea) continue;
+      const strike = strikes.get(shot.targetId);
+      shot.after = Math.max(0, strike.target.hp);
+      if (shot.effect === 'heal') continue;
+      // Attribute capped damage in shot order, including any healing queued this beat.
+      const health = remaining.get(shot.targetId) ?? shot.before + (strike.healing ?? 0);
+      shot.applied = Math.min(shot.power, health);
+      remaining.set(shot.targetId, health - shot.applied);
     }
   }
   for (const building of state.buildings) {
