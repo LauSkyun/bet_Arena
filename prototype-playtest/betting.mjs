@@ -40,7 +40,7 @@ function invest(round, side, amount, source) {
   };
 }
 
-export function advanceBetting(round, reference, lockAt, now) {
+export function advanceBetting(round, reference, lockAt, now, observeReference) {
   if (round.snapshot) return round;
   let updated = round;
   while (updated.referenceIndex < reference.length) {
@@ -48,6 +48,7 @@ export function advanceBetting(round, reference, lockAt, now) {
     const at = round.startedAt + event.elapsed;
     if (at > now || at >= lockAt) break;
     updated = { ...invest(updated, event.side, event.amount, 'system'), referenceIndex: updated.referenceIndex + 1 };
+    observeReference?.(updated, event, updated.referenceIndex);
   }
   if (now < lockAt) return updated;
   const snapshot = {

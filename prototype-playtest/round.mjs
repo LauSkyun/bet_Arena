@@ -6,7 +6,7 @@ import { settleSession } from './settlement.mjs';
 import { fireRevisionFor, groundSelfDestructRules, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 17;
+export const sessionVersion = 18;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
@@ -39,8 +39,8 @@ function newRound(number, startedAt, seed, durations, board = currentBoard, prof
   };
 }
 
-function replayForRound(round) {
-  return replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules, fireRevisionFor(round));
+export function replayForRound(round) {
+  return replayFor(round.snapshot.battle, round.durations.battleMs, round.board, round.combatRules, fireRevisionFor(round), true);
 }
 
 export function timeline(round) {
@@ -52,12 +52,12 @@ export function timeline(round) {
   return { lock, battle, finish, next: finish + resultMs };
 }
 
-export function advance(session, now) {
+export function advance(session, now, observe) {
   let lastFinished = null;
   for (let processed = 0; processed < catchUpBatch; processed++) {
     const round = session.round;
     const lock = round.startedAt + round.durations.betMs;
-    const sealed = advanceBetting(round, session.reference, lock, now);
+    const sealed = advanceBetting(round, session.reference, lock, now, observe?.reference);
     if (sealed !== round) session = { ...session, round: sealed };
     if (now < lock + lockMs) break;
     const time = timeline(sealed);
@@ -67,6 +67,7 @@ export function advance(session, now) {
     if (now < time.next) break;
 
     lastFinished = session.round;
+    observe?.finished(lastFinished);
     session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold) };
   }
   if (!lastFinished) return session;
@@ -87,16 +88,16 @@ export function view(session, now) {
   return { phase: 'settling', remainingMs: 0 };
 }
 
-export function placeBet(session, now, request) {
-  const current = advance(session, now);
+export function placeBet(session, now, request, observe) {
+  const current = advance(session, now, observe);
   if (!current.round.snapshot && now >= current.round.startedAt + current.round.durations.betMs) {
     return { session: current, error: '正在恢复轮次，请稍后下注。' };
   }
   return confirmBet(current, now, request);
 }
 
-export function saveRoundDurations(session, now, betSeconds, battleSeconds, profile = session.nextProfile ?? arenaProfile, threshold = session.nextThreshold) {
-  const current = advance(session, now);
+export function saveRoundDurations(session, now, betSeconds, battleSeconds, profile = session.nextProfile ?? arenaProfile, threshold = session.nextThreshold, observe) {
+  const current = advance(session, now, observe);
   if (now >= timeline(current.round).next) return { session: current, error: '正在恢复轮次，请稍后保存。' };
   const durations = durationsFromSeconds(betSeconds, battleSeconds);
   if (!durations) return { session: current, error: `下注和战斗时长均须为 1–${secondsLimit} 秒的整数。` };

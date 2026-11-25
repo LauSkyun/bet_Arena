@@ -1,0 +1,1067 @@
+{
+  "format": "bet-arena/bet_data",
+  "version": 1,
+  "sessionId": "archive-edge",
+  "roundNumber": 2,
+  "bet_log": {
+    "version": 1,
+    "complete": false,
+    "entries": [
+      {
+        "source": "system",
+        "requestId": "system-1",
+        "elapsedMs": 4000,
+        "side": "red",
+        "amount": 10,
+        "accepted": true,
+        "effects": null
+      },
+      {
+        "source": "system",
+        "requestId": "system-2",
+        "elapsedMs": 8000,
+        "side": "blue",
+        "amount": 10,
+        "accepted": true,
+        "effects": null
+      },
+      {
+        "source": "player",
+        "requestId": "double-submit",
+        "elapsedMs": 21000,
+        "side": "red",
+        "amount": 700,
+        "requestedRoundNumber": 2,
+        "accepted": true,
+        "error": null,
+        "receipt": {
+          "requestId": "double-submit",
+          "side": "red",
+          "amount": 700,
+          "confirmedAt": 1795580333595,
+          "effects": [
+            {
+              "side": "red",
+              "level": 1,
+              "label": "建造秃鹰车兵营（2行5列）",
+              "at": [
+                2,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 2,
+              "label": "建造火蝠兵营（3行4列）",
+              "at": [
+                3,
+                4
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 3,
+              "label": "建造追猎者兵营（1行3列）",
+              "at": [
+                1,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 4,
+              "label": "秃鹰车兵营升至 2 级（2行5列）",
+              "at": [
+                2,
+                5
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "red",
+              "level": 5,
+              "label": "火蝠兵营升至 2 级（3行4列）",
+              "at": [
+                3,
+                4
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "red",
+              "level": 6,
+              "label": "建造狂热者兵营（4行5列）",
+              "at": [
+                4,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 7,
+              "label": "追猎者兵营升至 2 级（1行3列）",
+              "at": [
+                1,
+                3
+              ],
+              "kind": "upgrade"
+            }
+          ]
+        },
+        "effects": [
+          {
+            "side": "red",
+            "level": 1,
+            "label": "建造秃鹰车兵营（2行5列）",
+            "at": [
+              2,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 2,
+            "label": "建造火蝠兵营（3行4列）",
+            "at": [
+              3,
+              4
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 3,
+            "label": "建造追猎者兵营（1行3列）",
+            "at": [
+              1,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 4,
+            "label": "秃鹰车兵营升至 2 级（2行5列）",
+            "at": [
+              2,
+              5
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "red",
+            "level": 5,
+            "label": "火蝠兵营升至 2 级（3行4列）",
+            "at": [
+              3,
+              4
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "red",
+            "level": 6,
+            "label": "建造狂热者兵营（4行5列）",
+            "at": [
+              4,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 7,
+            "label": "追猎者兵营升至 2 级（1行3列）",
+            "at": [
+              1,
+              3
+            ],
+            "kind": "upgrade"
+          }
+        ]
+      },
+      {
+        "source": "player",
+        "requestId": "too-big",
+        "elapsedMs": 21000,
+        "side": "red",
+        "amount": 25000,
+        "requestedRoundNumber": 2,
+        "accepted": false,
+        "error": "测试积分不足。",
+        "receipt": null,
+        "effects": []
+      },
+      {
+        "source": "player",
+        "requestId": "4178b931-609f-4aed-ba4d-67fc72f8684e",
+        "elapsedMs": 21000,
+        "side": "blue",
+        "amount": 700,
+        "requestedRoundNumber": 2,
+        "accepted": true,
+        "error": null,
+        "receipt": {
+          "requestId": "4178b931-609f-4aed-ba4d-67fc72f8684e",
+          "side": "blue",
+          "amount": 700,
+          "confirmedAt": 1795580333595,
+          "effects": [
+            {
+              "side": "blue",
+              "level": 1,
+              "label": "建造狂热者兵营（13行3列）",
+              "at": [
+                13,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 2,
+              "label": "建造秃鹰车兵营（14行5列）",
+              "at": [
+                14,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 3,
+              "label": "建造爆虫兵营（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 4,
+              "label": "爆虫兵营升至 2 级（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "blue",
+              "level": 5,
+              "label": "建造金甲虫兵营（13行4列）",
+              "at": [
+                13,
+                4
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 6,
+              "label": "建造追猎者兵营（14行3列）",
+              "at": [
+                14,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 7,
+              "label": "爆虫兵营升至 3 级（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "upgrade"
+            }
+          ]
+        },
+        "effects": [
+          {
+            "side": "blue",
+            "level": 1,
+            "label": "建造狂热者兵营（13行3列）",
+            "at": [
+              13,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 2,
+            "label": "建造秃鹰车兵营（14行5列）",
+            "at": [
+              14,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 3,
+            "label": "建造爆虫兵营（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 4,
+            "label": "爆虫兵营升至 2 级（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "blue",
+            "level": 5,
+            "label": "建造金甲虫兵营（13行4列）",
+            "at": [
+              13,
+              4
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 6,
+            "label": "建造追猎者兵营（14行3列）",
+            "at": [
+              14,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 7,
+            "label": "爆虫兵营升至 3 级（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "upgrade"
+          }
+        ]
+      }
+    ]
+  },
+  "battle_data": {
+    "format": "bet-arena/battle-data",
+    "version": 1,
+    "phase": "lock",
+    "elapsedMs": 60000,
+    "round": {
+      "number": 2,
+      "board": "hex-14",
+      "combatRules": 12,
+      "durations": {
+        "betMs": 60000,
+        "battleMs": 40000
+      },
+      "fireRevision": 2,
+      "profile": "sc-ground-v2.1-production",
+      "threshold": 100,
+      "sealed": true,
+      "stakes": {
+        "red": 700,
+        "blue": 700
+      },
+      "rates": {
+        "red": 143,
+        "blue": 143
+      },
+      "totals": {
+        "red": 710,
+        "blue": 710
+      },
+      "bets": [
+        {
+          "side": "red",
+          "amount": 700,
+          "elapsedMs": 21000
+        },
+        {
+          "side": "blue",
+          "amount": 700,
+          "elapsedMs": 21000
+        }
+      ],
+      "reference": [
+        {
+          "elapsed": 4000,
+          "side": "red",
+          "amount": 10
+        },
+        {
+          "elapsed": 8000,
+          "side": "blue",
+          "amount": 10
+        }
+      ],
+      "loadout": {
+        "red": {
+          "side": "red",
+          "theme": "人族",
+          "base": [
+            1,
+            4
+          ],
+          "baseAttack": {
+            "damage": 12,
+            "range": 3,
+            "attackMs": 1000
+          },
+          "barracks": [
+            {
+              "at": [
+                2,
+                5
+              ],
+              "exit": [
+                2,
+                4
+              ],
+              "unit": {
+                "unitId": 5,
+                "origin": "人族",
+                "name": "秃鹰车",
+                "label": "秃鹰",
+                "glyph": "鹰",
+                "quality": "绿",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 3000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 96,
+                "damage": 18
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                3,
+                4
+              ],
+              "exit": [
+                3,
+                3
+              ],
+              "unit": {
+                "unitId": 3,
+                "origin": "人族",
+                "name": "火蝠",
+                "label": "火蝠",
+                "glyph": "蝠",
+                "quality": "蓝",
+                "effect": "fan",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1500,
+                "spawnMs": 5000,
+                "spawnCount": 1,
+                "limit": 4,
+                "sense": 4,
+                "hp": 174,
+                "damage": 46
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                1,
+                3
+              ],
+              "exit": [
+                1,
+                2
+              ],
+              "unit": {
+                "unitId": 13,
+                "origin": "神族",
+                "name": "追猎者",
+                "label": "追猎",
+                "glyph": "追",
+                "quality": "蓝",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 120,
+                "damage": 22
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                4,
+                5
+              ],
+              "exit": [
+                4,
+                4
+              ],
+              "unit": {
+                "unitId": 12,
+                "origin": "神族",
+                "name": "狂热者",
+                "label": "狂热",
+                "glyph": "狂",
+                "quality": "绿",
+                "effect": "single",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1000,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 100,
+                "damage": 24
+              },
+              "level": 1,
+              "side": "red"
+            }
+          ],
+          "startingUnits": []
+        },
+        "blue": {
+          "side": "blue",
+          "theme": "神族",
+          "base": [
+            14,
+            4
+          ],
+          "baseAttack": {
+            "damage": 12,
+            "range": 3,
+            "attackMs": 1000
+          },
+          "barracks": [
+            {
+              "at": [
+                13,
+                3
+              ],
+              "exit": [
+                13,
+                2
+              ],
+              "unit": {
+                "unitId": 12,
+                "origin": "神族",
+                "name": "狂热者",
+                "label": "狂热",
+                "glyph": "狂",
+                "quality": "绿",
+                "effect": "single",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1000,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 100,
+                "damage": 24
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                14,
+                5
+              ],
+              "exit": [
+                14,
+                6
+              ],
+              "unit": {
+                "unitId": 5,
+                "origin": "人族",
+                "name": "秃鹰车",
+                "label": "秃鹰",
+                "glyph": "鹰",
+                "quality": "绿",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 3000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 80,
+                "damage": 15
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                12,
+                3
+              ],
+              "exit": [
+                12,
+                4
+              ],
+              "unit": {
+                "unitId": 27,
+                "origin": "虫族",
+                "name": "爆虫",
+                "label": "爆虫",
+                "glyph": "爆",
+                "quality": "蓝",
+                "effect": "self-destruct",
+                "range": 1,
+                "attackMs": 0,
+                "moveMs": 500,
+                "spawnMs": 4500,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 42,
+                "damage": 95
+              },
+              "level": 3,
+              "side": "blue"
+            },
+            {
+              "at": [
+                13,
+                4
+              ],
+              "exit": [
+                13,
+                5
+              ],
+              "unit": {
+                "unitId": 16,
+                "origin": "神族",
+                "name": "金甲虫",
+                "label": "金甲",
+                "glyph": "甲",
+                "quality": "蓝",
+                "effect": "splash",
+                "range": 5,
+                "attackMs": 3000,
+                "moveMs": 1500,
+                "spawnMs": 10000,
+                "spawnCount": 1,
+                "limit": 2,
+                "sense": 5,
+                "hp": 74,
+                "damage": 100
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                14,
+                3
+              ],
+              "exit": [
+                14,
+                2
+              ],
+              "unit": {
+                "unitId": 13,
+                "origin": "神族",
+                "name": "追猎者",
+                "label": "追猎",
+                "glyph": "追",
+                "quality": "蓝",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 100,
+                "damage": 19
+              },
+              "level": 1,
+              "side": "blue"
+            }
+          ],
+          "startingUnits": []
+        }
+      },
+      "result": null,
+      "seed": 8,
+      "startedAt": 1795580312595,
+      "lockedAt": 1795580372595,
+      "battleStartedAt": 1795580374595
+    }
+  },
+  "battle_log": {
+    "format": "bet-arena/battle_log",
+    "version": 1,
+    "sessionId": "archive-edge",
+    "roundNumber": 2,
+    "board": "hex-14",
+    "combatRules": 12,
+    "fireRevision": 2,
+    "initialFrame": {
+      "elapsed": 0,
+      "shots": [],
+      "events": [],
+      "scores": {
+        "red": 28,
+        "blue": 28
+      },
+      "terrain": {
+        "1-1": "ground",
+        "1-2": "ground",
+        "2-1": "ground",
+        "2-2": "ground",
+        "2-6": "ground",
+        "2-7": "ground",
+        "3-1": "ground",
+        "3-2": "ground",
+        "3-3": "ground",
+        "3-6": "ground",
+        "3-7": "ground",
+        "4-1": "ground",
+        "4-2": "ground",
+        "4-7": "ground",
+        "5-1": "ground",
+        "5-2": "ground",
+        "5-5": "ground",
+        "5-6": "ground",
+        "5-7": "ground",
+        "6-1": "ground",
+        "6-2": "ground",
+        "6-4": "ground",
+        "6-7": "ground",
+        "7-1": "ground",
+        "7-2": "ground",
+        "7-3": "ground",
+        "7-4": "ground",
+        "7-7": "ground",
+        "8-1": "ground",
+        "8-4": "ground",
+        "8-5": "ground",
+        "8-6": "ground",
+        "8-7": "ground",
+        "9-1": "ground",
+        "9-4": "ground",
+        "9-6": "ground",
+        "9-7": "ground",
+        "10-1": "ground",
+        "10-2": "ground",
+        "10-3": "ground",
+        "10-6": "ground",
+        "10-7": "ground",
+        "11-1": "ground",
+        "11-6": "ground",
+        "11-7": "ground",
+        "12-1": "ground",
+        "12-2": "ground",
+        "12-5": "ground",
+        "12-6": "ground",
+        "12-7": "ground",
+        "13-1": "ground",
+        "13-2": "ground",
+        "13-6": "ground",
+        "13-7": "ground",
+        "14-6": "ground",
+        "14-7": "ground",
+        "1-4": "base",
+        "1-3": "barracks",
+        "1-5": "plot",
+        "1-6": "plot",
+        "1-7": "plot",
+        "2-3": "plot",
+        "2-4": "plot",
+        "2-5": "barracks",
+        "3-4": "barracks",
+        "3-5": "plot",
+        "4-3": "plot",
+        "4-4": "plot",
+        "4-5": "barracks",
+        "4-6": "plot",
+        "5-3": "plot",
+        "5-4": "plot",
+        "6-3": "plot",
+        "6-5": "plot",
+        "6-6": "plot",
+        "7-5": "plot",
+        "7-6": "plot",
+        "14-4": "base",
+        "14-5": "barracks",
+        "14-3": "barracks",
+        "14-2": "plot",
+        "14-1": "plot",
+        "13-5": "plot",
+        "13-4": "barracks",
+        "13-3": "barracks",
+        "12-4": "plot",
+        "12-3": "barracks",
+        "11-5": "plot",
+        "11-4": "plot",
+        "11-3": "plot",
+        "11-2": "plot",
+        "10-5": "plot",
+        "10-4": "plot",
+        "9-5": "plot",
+        "9-3": "plot",
+        "9-2": "plot",
+        "8-3": "plot",
+        "8-2": "plot"
+      },
+      "owners": {
+        "1-1": "red",
+        "1-2": "red",
+        "2-1": "red",
+        "2-2": "red",
+        "2-6": "red",
+        "2-7": "red",
+        "3-1": "red",
+        "3-2": "red",
+        "3-3": "red",
+        "3-6": "red",
+        "3-7": "red",
+        "4-1": "red",
+        "4-2": "red",
+        "4-7": "red",
+        "5-1": "red",
+        "5-2": "red",
+        "5-5": "red",
+        "5-6": "red",
+        "5-7": "red",
+        "6-1": "red",
+        "6-2": "red",
+        "6-4": "red",
+        "6-7": "red",
+        "7-1": "red",
+        "7-2": "red",
+        "7-3": "red",
+        "7-4": "red",
+        "7-7": "red",
+        "8-1": "blue",
+        "8-4": "blue",
+        "8-5": "blue",
+        "8-6": "blue",
+        "8-7": "blue",
+        "9-1": "blue",
+        "9-4": "blue",
+        "9-6": "blue",
+        "9-7": "blue",
+        "10-1": "blue",
+        "10-2": "blue",
+        "10-3": "blue",
+        "10-6": "blue",
+        "10-7": "blue",
+        "11-1": "blue",
+        "11-6": "blue",
+        "11-7": "blue",
+        "12-1": "blue",
+        "12-2": "blue",
+        "12-5": "blue",
+        "12-6": "blue",
+        "12-7": "blue",
+        "13-1": "blue",
+        "13-2": "blue",
+        "13-6": "blue",
+        "13-7": "blue",
+        "14-6": "blue",
+        "14-7": "blue",
+        "1-5": "red",
+        "1-6": "red",
+        "1-7": "red",
+        "2-3": "red",
+        "2-4": "red",
+        "3-5": "red",
+        "4-3": "red",
+        "4-4": "red",
+        "4-6": "red",
+        "5-3": "red",
+        "5-4": "red",
+        "6-3": "red",
+        "6-5": "red",
+        "6-6": "red",
+        "7-5": "red",
+        "7-6": "red",
+        "14-2": "blue",
+        "14-1": "blue",
+        "13-5": "blue",
+        "12-4": "blue",
+        "11-5": "blue",
+        "11-4": "blue",
+        "11-3": "blue",
+        "11-2": "blue",
+        "10-5": "blue",
+        "10-4": "blue",
+        "9-5": "blue",
+        "9-3": "blue",
+        "9-2": "blue",
+        "8-3": "blue",
+        "8-2": "blue"
+      },
+      "buildings": [
+        {
+          "id": 1,
+          "side": "red",
+          "kind": "base",
+          "at": [
+            1,
+            4
+          ],
+          "hp": 240
+        },
+        {
+          "id": 2,
+          "side": "red",
+          "kind": "barracks",
+          "at": [
+            2,
+            5
+          ],
+          "hp": 120
+        },
+        {
+          "id": 3,
+          "side": "red",
+          "kind": "barracks",
+          "at": [
+            3,
+            4
+          ],
+          "hp": 120
+        },
+        {
+          "id": 4,
+          "side": "red",
+          "kind": "barracks",
+          "at": [
+            1,
+            3
+          ],
+          "hp": 120
+        },
+        {
+          "id": 5,
+          "side": "red",
+          "kind": "barracks",
+          "at": [
+            4,
+            5
+          ],
+          "hp": 120
+        },
+        {
+          "id": 6,
+          "side": "blue",
+          "kind": "base",
+          "at": [
+            14,
+            4
+          ],
+          "hp": 240
+        },
+        {
+          "id": 7,
+          "side": "blue",
+          "kind": "barracks",
+          "at": [
+            13,
+            3
+          ],
+          "hp": 120
+        },
+        {
+          "id": 8,
+          "side": "blue",
+          "kind": "barracks",
+          "at": [
+            14,
+            5
+          ],
+          "hp": 120
+        },
+        {
+          "id": 9,
+          "side": "blue",
+          "kind": "barracks",
+          "at": [
+            12,
+            3
+          ],
+          "hp": 120
+        },
+        {
+          "id": 10,
+          "side": "blue",
+          "kind": "barracks",
+          "at": [
+            13,
+            4
+          ],
+          "hp": 120
+        },
+        {
+          "id": 11,
+          "side": "blue",
+          "kind": "barracks",
+          "at": [
+            14,
+            3
+          ],
+          "hp": 120
+        }
+      ],
+      "units": []
+    },
+    "recordedThroughMs": 7500,
+    "complete": false,
+    "result": null,
+    "settlement": null,
+    "frames": [
+      {"elapsed":500,"scores":{"red":28,"blue":28},"shots":[],"events":[],"owners":[],"terrain":[],"units":[],"buildings":[]},
+      {"elapsed":1000,"scores":{"red":28,"blue":28},"shots":[],"events":[],"owners":[],"terrain":[],"units":[],"buildings":[]},
+      {"elapsed":1500,"scores":{"red":28,"blue":28},"shots":[],"events":[],"owners":[],"terrain":[],"units":[],"buildings":[]},
+      {"elapsed":2000,"scores":{"red":28,"blue":28},"shots":[],"events":[],"owners":[],"terrain":[],"units":[],"buildings":[]},
+      {"elapsed":2500,"scores":{"red":28,"blue":28},"shots":[],"events":[],"owners":[],"terrain":[],"units":[],"buildings":[]},
+      {"elapsed":3000,"scores":{"red":28,"blue":28},"shots":[],"events":[{"kind":"spawn","id":12,"side":"red","name":"秃鹰车","at":[2,4],"source":2,"hp":96},{"kind":"spawn","id":13,"side":"blue","name":"秃鹰车","at":[14,6],"source":8,"hp":80}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[2,4],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[13,{"id":13,"side":"blue","at":[14,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":3500,"scores":{"red":28,"blue":28},"shots":[],"events":[{"kind":"move","id":12,"side":"red","name":"秃鹰车","from":[2,4],"to":[3,3]},{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[14,6],"to":[13,6]}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[3,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[13,{"id":13,"side":"blue","at":[13,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":4000,"scores":{"red":28,"blue":28},"shots":[],"events":[{"kind":"move","id":12,"side":"red","name":"秃鹰车","from":[3,3],"to":[4,3]},{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[13,6],"to":[12,6]},{"kind":"spawn","id":14,"side":"red","name":"追猎者","at":[1,2],"source":4,"hp":120},{"kind":"spawn","id":15,"side":"red","name":"狂热者","at":[4,4],"source":5,"hp":100},{"kind":"spawn","id":16,"side":"blue","name":"狂热者","at":[13,2],"source":7,"hp":100},{"kind":"spawn","id":17,"side":"blue","name":"追猎者","at":[14,2],"source":11,"hp":100}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[4,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[13,{"id":13,"side":"blue","at":[12,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}],[14,{"id":14,"side":"red","at":[1,2],"hp":120,"name":"追猎者","range":3,"source":4,"target":null,"hit":null}],[15,{"id":15,"side":"red","at":[4,4],"hp":100,"name":"狂热者","range":1,"source":5,"target":null,"hit":null}],[16,{"id":16,"side":"blue","at":[13,2],"hp":100,"name":"狂热者","range":1,"source":7,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[14,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":4500,"scores":{"red":28,"blue":28},"shots":[],"events":[{"kind":"move","id":12,"side":"red","name":"秃鹰车","from":[4,3],"to":[5,3]},{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[12,6],"to":[11,6]},{"kind":"move","id":14,"side":"red","name":"追猎者","from":[1,2],"to":[2,2]},{"kind":"move","id":17,"side":"blue","name":"追猎者","from":[14,2],"to":[13,2]},{"kind":"spawn","id":18,"side":"blue","name":"爆虫","at":[12,4],"source":9,"hp":42}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[5,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[13,{"id":13,"side":"blue","at":[11,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}],[14,{"id":14,"side":"red","at":[2,2],"hp":120,"name":"追猎者","range":3,"source":4,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[13,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":null,"hit":null}],[18,{"id":18,"side":"blue","at":[12,4],"hp":42,"name":"爆虫","range":1,"source":9,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":5000,"scores":{"red":28,"blue":28},"shots":[],"events":[{"kind":"move","id":12,"side":"red","name":"秃鹰车","from":[5,3],"to":[6,3]},{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[11,6],"to":[10,6]},{"kind":"move","id":14,"side":"red","name":"追猎者","from":[2,2],"to":[3,2]},{"kind":"move","id":15,"side":"red","name":"狂热者","from":[4,4],"to":[5,4]},{"kind":"move","id":16,"side":"blue","name":"狂热者","from":[13,2],"to":[12,2]},{"kind":"move","id":17,"side":"blue","name":"追猎者","from":[13,2],"to":[12,2]},{"kind":"move","id":18,"side":"blue","name":"爆虫","from":[12,4],"to":[11,4]},{"kind":"spawn","id":19,"side":"red","name":"火蝠","at":[3,3],"source":3,"hp":174}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[6,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[13,{"id":13,"side":"blue","at":[10,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}],[14,{"id":14,"side":"red","at":[3,2],"hp":120,"name":"追猎者","range":3,"source":4,"target":null,"hit":null}],[15,{"id":15,"side":"red","at":[5,4],"hp":100,"name":"狂热者","range":1,"source":5,"target":null,"hit":null}],[16,{"id":16,"side":"blue","at":[12,2],"hp":100,"name":"狂热者","range":1,"source":7,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[12,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":null,"hit":null}],[18,{"id":18,"side":"blue","at":[11,4],"hp":42,"name":"爆虫","range":1,"source":9,"target":null,"hit":null}],[19,{"id":19,"side":"red","at":[3,3],"hp":174,"name":"火蝠","range":1,"source":3,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":5500,"scores":{"red":28,"blue":28},"shots":[{"side":"red","name":"秃鹰车","from":[7,3],"to":[10,4],"range":3,"attackerId":12,"targetId":18,"targetName":"爆虫","power":18,"before":42,"after":24,"applied":18}],"events":[{"kind":"move","id":12,"side":"red","name":"秃鹰车","from":[6,3],"to":[7,3]},{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[10,6],"to":[9,6]},{"kind":"move","id":14,"side":"red","name":"追猎者","from":[3,2],"to":[4,2]},{"kind":"move","id":17,"side":"blue","name":"追猎者","from":[12,2],"to":[11,2]},{"kind":"move","id":18,"side":"blue","name":"爆虫","from":[11,4],"to":[10,4]}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[7,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":18}],[13,{"id":13,"side":"blue","at":[9,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}],[14,{"id":14,"side":"red","at":[4,2],"hp":120,"name":"追猎者","range":3,"source":4,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[11,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":null,"hit":null}],[18,{"id":18,"side":"blue","at":[10,4],"hp":24,"name":"爆虫","range":1,"source":9,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":6000,"scores":{"red":28,"blue":28},"shots":[{"side":"blue","name":"秃鹰车","from":[9,5],"to":[7,3],"range":3,"attackerId":13,"targetId":12,"targetName":"秃鹰车","power":15,"before":96,"after":62,"applied":15},{"side":"blue","name":"追猎者","from":[10,2],"to":[7,3],"range":3,"attackerId":17,"targetId":12,"targetName":"秃鹰车","power":19,"before":96,"after":62,"applied":19}],"events":[{"kind":"move","id":13,"side":"blue","name":"秃鹰车","from":[9,6],"to":[9,5]},{"kind":"move","id":14,"side":"red","name":"追猎者","from":[4,2],"to":[5,2]},{"kind":"move","id":15,"side":"red","name":"狂热者","from":[5,4],"to":[6,5]},{"kind":"move","id":16,"side":"blue","name":"狂热者","from":[12,2],"to":[11,2]},{"kind":"move","id":17,"side":"blue","name":"追猎者","from":[11,2],"to":[10,2]},{"kind":"move","id":18,"side":"blue","name":"爆虫","from":[10,4],"to":[9,4]},{"kind":"spawn","id":20,"side":"red","name":"秃鹰车","at":[2,4],"source":2,"hp":96},{"kind":"spawn","id":21,"side":"blue","name":"秃鹰车","at":[14,6],"source":8,"hp":80}],"owners":[],"terrain":[],"units":[[12,{"id":12,"side":"red","at":[7,3],"hp":62,"name":"秃鹰车","range":3,"source":2,"target":18,"hit":null}],[13,{"id":13,"side":"blue","at":[9,5],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":12,"hit":12}],[14,{"id":14,"side":"red","at":[5,2],"hp":120,"name":"追猎者","range":3,"source":4,"target":null,"hit":null}],[15,{"id":15,"side":"red","at":[6,5],"hp":100,"name":"狂热者","range":1,"source":5,"target":13,"hit":null}],[16,{"id":16,"side":"blue","at":[11,2],"hp":100,"name":"狂热者","range":1,"source":7,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[10,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":12,"hit":12}],[18,{"id":18,"side":"blue","at":[9,4],"hp":24,"name":"爆虫","range":1,"source":9,"target":12,"hit":null}],[20,{"id":20,"side":"red","at":[2,4],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[21,{"id":21,"side":"blue","at":[14,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":6500,"scores":{"red":28,"blue":28},"shots":[{"side":"red","name":"秃鹰车","from":[7,3],"to":[8,4],"range":3,"attackerId":12,"targetId":18,"targetName":"爆虫","power":18,"before":24,"after":0,"applied":18},{"side":"red","name":"追猎者","from":[6,3],"to":[8,4],"range":3,"attackerId":14,"targetId":18,"targetName":"爆虫","power":22,"before":24,"after":0,"applied":6},{"side":"blue","name":"爆虫","from":[8,4],"to":[7,3],"range":1,"effect":"self-destruct","primary":true,"attackerId":18,"targetId":12,"targetName":"秃鹰车","power":95,"before":62,"after":0,"applied":62},{"side":"blue","name":"爆虫","from":[8,4],"to":[6,3],"range":1,"effect":"self-destruct","primary":false,"attackerId":18,"targetId":14,"targetName":"追猎者","power":47,"before":120,"after":73,"applied":47}],"events":[{"kind":"move","id":14,"side":"red","name":"追猎者","from":[5,2],"to":[6,3]},{"kind":"move","id":18,"side":"blue","name":"爆虫","from":[9,4],"to":[8,4]},{"kind":"move","id":19,"side":"red","name":"火蝠","from":[3,3],"to":[4,3]},{"kind":"move","id":20,"side":"red","name":"秃鹰车","from":[2,4],"to":[3,3]},{"kind":"move","id":21,"side":"blue","name":"秃鹰车","from":[14,6],"to":[13,6]}],"owners":[],"terrain":[],"units":[[13,{"id":13,"side":"blue","at":[9,5],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":12,"hit":null}],[14,{"id":14,"side":"red","at":[6,3],"hp":73,"name":"追猎者","range":3,"source":4,"target":18,"hit":18}],[17,{"id":17,"side":"blue","at":[10,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":12,"hit":null}],[19,{"id":19,"side":"red","at":[4,3],"hp":174,"name":"火蝠","range":1,"source":3,"target":null,"hit":null}],[20,{"id":20,"side":"red","at":[3,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[21,{"id":21,"side":"blue","at":[13,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}],[12],[18]],"buildings":[]},
+      {"elapsed":7000,"scores":{"red":28,"blue":28},"shots":[{"side":"blue","name":"秃鹰车","from":[9,5],"to":[7,5],"range":3,"attackerId":13,"targetId":15,"targetName":"狂热者","power":15,"before":100,"after":85,"applied":15},{"side":"blue","name":"追猎者","from":[9,2],"to":[6,4],"range":3,"attackerId":17,"targetId":14,"targetName":"追猎者","power":19,"before":73,"after":54,"applied":19}],"events":[{"kind":"move","id":14,"side":"red","name":"追猎者","from":[6,3],"to":[6,4]},{"kind":"move","id":15,"side":"red","name":"狂热者","from":[6,5],"to":[7,5]},{"kind":"move","id":16,"side":"blue","name":"狂热者","from":[11,2],"to":[10,2]},{"kind":"move","id":17,"side":"blue","name":"追猎者","from":[10,2],"to":[9,2]},{"kind":"move","id":20,"side":"red","name":"秃鹰车","from":[3,3],"to":[4,3]},{"kind":"move","id":21,"side":"blue","name":"秃鹰车","from":[13,6],"to":[12,6]}],"owners":[],"terrain":[],"units":[[13,{"id":13,"side":"blue","at":[9,5],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":15,"hit":15}],[14,{"id":14,"side":"red","at":[6,4],"hp":54,"name":"追猎者","range":3,"source":4,"target":13,"hit":null}],[15,{"id":15,"side":"red","at":[7,5],"hp":85,"name":"狂热者","range":1,"source":5,"target":13,"hit":null}],[16,{"id":16,"side":"blue","at":[10,2],"hp":100,"name":"狂热者","range":1,"source":7,"target":null,"hit":null}],[17,{"id":17,"side":"blue","at":[9,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":14,"hit":14}],[20,{"id":20,"side":"red","at":[4,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[21,{"id":21,"side":"blue","at":[12,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}]],"buildings":[]},
+      {"elapsed":7500,"scores":{"red":28,"blue":28},"shots":[{"side":"red","name":"追猎者","from":[6,4],"to":[9,5],"range":3,"attackerId":14,"targetId":13,"targetName":"秃鹰车","power":22,"before":80,"after":58,"applied":22}],"events":[{"kind":"move","id":20,"side":"red","name":"秃鹰车","from":[4,3],"to":[5,3]},{"kind":"move","id":21,"side":"blue","name":"秃鹰车","from":[12,6],"to":[11,6]}],"owners":[],"terrain":[],"units":[[13,{"id":13,"side":"blue","at":[9,5],"hp":58,"name":"秃鹰车","range":3,"source":8,"target":15,"hit":null}],[14,{"id":14,"side":"red","at":[6,4],"hp":54,"name":"追猎者","range":3,"source":4,"target":13,"hit":13}],[17,{"id":17,"side":"blue","at":[9,2],"hp":100,"name":"追猎者","range":3,"source":11,"target":14,"hit":null}],[20,{"id":20,"side":"red","at":[5,3],"hp":96,"name":"秃鹰车","range":3,"source":2,"target":null,"hit":null}],[21,{"id":21,"side":"blue","at":[11,6],"hp":80,"name":"秃鹰车","range":3,"source":8,"target":null,"hit":null}]],"buildings":[]}
+    ]
+  }
+}

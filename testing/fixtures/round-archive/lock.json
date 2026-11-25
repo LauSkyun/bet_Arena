@@ -1,0 +1,727 @@
+{
+  "format": "bet-arena/bet_data",
+  "version": 1,
+  "sessionId": "archive-edge",
+  "roundNumber": 2,
+  "bet_log": {
+    "version": 1,
+    "complete": false,
+    "entries": [
+      {
+        "source": "system",
+        "requestId": "system-1",
+        "elapsedMs": 4000,
+        "side": "red",
+        "amount": 10,
+        "accepted": true,
+        "effects": null
+      },
+      {
+        "source": "system",
+        "requestId": "system-2",
+        "elapsedMs": 8000,
+        "side": "blue",
+        "amount": 10,
+        "accepted": true,
+        "effects": null
+      },
+      {
+        "source": "player",
+        "requestId": "double-submit",
+        "elapsedMs": 21000,
+        "side": "red",
+        "amount": 700,
+        "requestedRoundNumber": 2,
+        "accepted": true,
+        "error": null,
+        "receipt": {
+          "requestId": "double-submit",
+          "side": "red",
+          "amount": 700,
+          "confirmedAt": 1795580333595,
+          "effects": [
+            {
+              "side": "red",
+              "level": 1,
+              "label": "建造秃鹰车兵营（2行5列）",
+              "at": [
+                2,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 2,
+              "label": "建造火蝠兵营（3行4列）",
+              "at": [
+                3,
+                4
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 3,
+              "label": "建造追猎者兵营（1行3列）",
+              "at": [
+                1,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 4,
+              "label": "秃鹰车兵营升至 2 级（2行5列）",
+              "at": [
+                2,
+                5
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "red",
+              "level": 5,
+              "label": "火蝠兵营升至 2 级（3行4列）",
+              "at": [
+                3,
+                4
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "red",
+              "level": 6,
+              "label": "建造狂热者兵营（4行5列）",
+              "at": [
+                4,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "red",
+              "level": 7,
+              "label": "追猎者兵营升至 2 级（1行3列）",
+              "at": [
+                1,
+                3
+              ],
+              "kind": "upgrade"
+            }
+          ]
+        },
+        "effects": [
+          {
+            "side": "red",
+            "level": 1,
+            "label": "建造秃鹰车兵营（2行5列）",
+            "at": [
+              2,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 2,
+            "label": "建造火蝠兵营（3行4列）",
+            "at": [
+              3,
+              4
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 3,
+            "label": "建造追猎者兵营（1行3列）",
+            "at": [
+              1,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 4,
+            "label": "秃鹰车兵营升至 2 级（2行5列）",
+            "at": [
+              2,
+              5
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "red",
+            "level": 5,
+            "label": "火蝠兵营升至 2 级（3行4列）",
+            "at": [
+              3,
+              4
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "red",
+            "level": 6,
+            "label": "建造狂热者兵营（4行5列）",
+            "at": [
+              4,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "red",
+            "level": 7,
+            "label": "追猎者兵营升至 2 级（1行3列）",
+            "at": [
+              1,
+              3
+            ],
+            "kind": "upgrade"
+          }
+        ]
+      },
+      {
+        "source": "player",
+        "requestId": "too-big",
+        "elapsedMs": 21000,
+        "side": "red",
+        "amount": 25000,
+        "requestedRoundNumber": 2,
+        "accepted": false,
+        "error": "测试积分不足。",
+        "receipt": null,
+        "effects": []
+      },
+      {
+        "source": "player",
+        "requestId": "4178b931-609f-4aed-ba4d-67fc72f8684e",
+        "elapsedMs": 21000,
+        "side": "blue",
+        "amount": 700,
+        "requestedRoundNumber": 2,
+        "accepted": true,
+        "error": null,
+        "receipt": {
+          "requestId": "4178b931-609f-4aed-ba4d-67fc72f8684e",
+          "side": "blue",
+          "amount": 700,
+          "confirmedAt": 1795580333595,
+          "effects": [
+            {
+              "side": "blue",
+              "level": 1,
+              "label": "建造狂热者兵营（13行3列）",
+              "at": [
+                13,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 2,
+              "label": "建造秃鹰车兵营（14行5列）",
+              "at": [
+                14,
+                5
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 3,
+              "label": "建造爆虫兵营（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 4,
+              "label": "爆虫兵营升至 2 级（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "upgrade"
+            },
+            {
+              "side": "blue",
+              "level": 5,
+              "label": "建造金甲虫兵营（13行4列）",
+              "at": [
+                13,
+                4
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 6,
+              "label": "建造追猎者兵营（14行3列）",
+              "at": [
+                14,
+                3
+              ],
+              "kind": "build"
+            },
+            {
+              "side": "blue",
+              "level": 7,
+              "label": "爆虫兵营升至 3 级（12行3列）",
+              "at": [
+                12,
+                3
+              ],
+              "kind": "upgrade"
+            }
+          ]
+        },
+        "effects": [
+          {
+            "side": "blue",
+            "level": 1,
+            "label": "建造狂热者兵营（13行3列）",
+            "at": [
+              13,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 2,
+            "label": "建造秃鹰车兵营（14行5列）",
+            "at": [
+              14,
+              5
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 3,
+            "label": "建造爆虫兵营（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 4,
+            "label": "爆虫兵营升至 2 级（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "upgrade"
+          },
+          {
+            "side": "blue",
+            "level": 5,
+            "label": "建造金甲虫兵营（13行4列）",
+            "at": [
+              13,
+              4
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 6,
+            "label": "建造追猎者兵营（14行3列）",
+            "at": [
+              14,
+              3
+            ],
+            "kind": "build"
+          },
+          {
+            "side": "blue",
+            "level": 7,
+            "label": "爆虫兵营升至 3 级（12行3列）",
+            "at": [
+              12,
+              3
+            ],
+            "kind": "upgrade"
+          }
+        ]
+      }
+    ]
+  },
+  "battle_data": {
+    "format": "bet-arena/battle-data",
+    "version": 1,
+    "phase": "lock",
+    "elapsedMs": 60000,
+    "round": {
+      "number": 2,
+      "board": "hex-14",
+      "combatRules": 12,
+      "durations": {
+        "betMs": 60000,
+        "battleMs": 40000
+      },
+      "fireRevision": 2,
+      "profile": "sc-ground-v2.1-production",
+      "threshold": 100,
+      "sealed": true,
+      "stakes": {
+        "red": 700,
+        "blue": 700
+      },
+      "rates": {
+        "red": 143,
+        "blue": 143
+      },
+      "totals": {
+        "red": 710,
+        "blue": 710
+      },
+      "bets": [
+        {
+          "side": "red",
+          "amount": 700,
+          "elapsedMs": 21000
+        },
+        {
+          "side": "blue",
+          "amount": 700,
+          "elapsedMs": 21000
+        }
+      ],
+      "reference": [
+        {
+          "elapsed": 4000,
+          "side": "red",
+          "amount": 10
+        },
+        {
+          "elapsed": 8000,
+          "side": "blue",
+          "amount": 10
+        }
+      ],
+      "loadout": {
+        "red": {
+          "side": "red",
+          "theme": "人族",
+          "base": [
+            1,
+            4
+          ],
+          "baseAttack": {
+            "damage": 12,
+            "range": 3,
+            "attackMs": 1000
+          },
+          "barracks": [
+            {
+              "at": [
+                2,
+                5
+              ],
+              "exit": [
+                2,
+                4
+              ],
+              "unit": {
+                "unitId": 5,
+                "origin": "人族",
+                "name": "秃鹰车",
+                "label": "秃鹰",
+                "glyph": "鹰",
+                "quality": "绿",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 3000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 96,
+                "damage": 18
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                3,
+                4
+              ],
+              "exit": [
+                3,
+                3
+              ],
+              "unit": {
+                "unitId": 3,
+                "origin": "人族",
+                "name": "火蝠",
+                "label": "火蝠",
+                "glyph": "蝠",
+                "quality": "蓝",
+                "effect": "fan",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1500,
+                "spawnMs": 5000,
+                "spawnCount": 1,
+                "limit": 4,
+                "sense": 4,
+                "hp": 174,
+                "damage": 46
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                1,
+                3
+              ],
+              "exit": [
+                1,
+                2
+              ],
+              "unit": {
+                "unitId": 13,
+                "origin": "神族",
+                "name": "追猎者",
+                "label": "追猎",
+                "glyph": "追",
+                "quality": "蓝",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 120,
+                "damage": 22
+              },
+              "level": 2,
+              "side": "red"
+            },
+            {
+              "at": [
+                4,
+                5
+              ],
+              "exit": [
+                4,
+                4
+              ],
+              "unit": {
+                "unitId": 12,
+                "origin": "神族",
+                "name": "狂热者",
+                "label": "狂热",
+                "glyph": "狂",
+                "quality": "绿",
+                "effect": "single",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1000,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 100,
+                "damage": 24
+              },
+              "level": 1,
+              "side": "red"
+            }
+          ],
+          "startingUnits": []
+        },
+        "blue": {
+          "side": "blue",
+          "theme": "神族",
+          "base": [
+            14,
+            4
+          ],
+          "baseAttack": {
+            "damage": 12,
+            "range": 3,
+            "attackMs": 1000
+          },
+          "barracks": [
+            {
+              "at": [
+                13,
+                3
+              ],
+              "exit": [
+                13,
+                2
+              ],
+              "unit": {
+                "unitId": 12,
+                "origin": "神族",
+                "name": "狂热者",
+                "label": "狂热",
+                "glyph": "狂",
+                "quality": "绿",
+                "effect": "single",
+                "range": 1,
+                "attackMs": 1000,
+                "moveMs": 1000,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 100,
+                "damage": 24
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                14,
+                5
+              ],
+              "exit": [
+                14,
+                6
+              ],
+              "unit": {
+                "unitId": 5,
+                "origin": "人族",
+                "name": "秃鹰车",
+                "label": "秃鹰",
+                "glyph": "鹰",
+                "quality": "绿",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 3000,
+                "spawnCount": 1,
+                "limit": 6,
+                "sense": 4,
+                "hp": 80,
+                "damage": 15
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                12,
+                3
+              ],
+              "exit": [
+                12,
+                4
+              ],
+              "unit": {
+                "unitId": 27,
+                "origin": "虫族",
+                "name": "爆虫",
+                "label": "爆虫",
+                "glyph": "爆",
+                "quality": "蓝",
+                "effect": "self-destruct",
+                "range": 1,
+                "attackMs": 0,
+                "moveMs": 500,
+                "spawnMs": 4500,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 42,
+                "damage": 95
+              },
+              "level": 3,
+              "side": "blue"
+            },
+            {
+              "at": [
+                13,
+                4
+              ],
+              "exit": [
+                13,
+                5
+              ],
+              "unit": {
+                "unitId": 16,
+                "origin": "神族",
+                "name": "金甲虫",
+                "label": "金甲",
+                "glyph": "甲",
+                "quality": "蓝",
+                "effect": "splash",
+                "range": 5,
+                "attackMs": 3000,
+                "moveMs": 1500,
+                "spawnMs": 10000,
+                "spawnCount": 1,
+                "limit": 2,
+                "sense": 5,
+                "hp": 74,
+                "damage": 100
+              },
+              "level": 1,
+              "side": "blue"
+            },
+            {
+              "at": [
+                14,
+                3
+              ],
+              "exit": [
+                14,
+                2
+              ],
+              "unit": {
+                "unitId": 13,
+                "origin": "神族",
+                "name": "追猎者",
+                "label": "追猎",
+                "glyph": "追",
+                "quality": "蓝",
+                "effect": "single",
+                "range": 3,
+                "attackMs": 1000,
+                "moveMs": 500,
+                "spawnMs": 4000,
+                "spawnCount": 1,
+                "limit": 5,
+                "sense": 4,
+                "hp": 100,
+                "damage": 19
+              },
+              "level": 1,
+              "side": "blue"
+            }
+          ],
+          "startingUnits": []
+        }
+      },
+      "result": null,
+      "seed": 8,
+      "startedAt": 1795580312595,
+      "lockedAt": 1795580372595,
+      "battleStartedAt": 1795580374595
+    }
+  },
+  "battle_log": null
+}
