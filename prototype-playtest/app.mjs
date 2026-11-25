@@ -3,12 +3,12 @@ import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
-import { battleRules, fireRevisionFor, baseVictoryRules, groundHealingRules, groundAreaRules, groundSelfDestructRules, countGround, frameAt, openingGround, replayFor } from './battle.mjs';
+import { battleRules, baseVictoryRules, groundHealingRules, groundAreaRules, groundSelfDestructRules, countGround, frameAt, openingGround } from './battle.mjs';
 import { findReceipt, isFull, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
-import { placeBet, saveRoundDurations, view } from './round.mjs';
+import { replayForRound, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
-import { resetSession, updateSession } from './storage.mjs';
+import { archivedBetResult, archiveRoundNumbers, exportArchivedRound, resetSession, submitArchivedBet, updateSession } from './storage.mjs';
 
 const element = (id) => document.getElementById(id);
 const teamName = { red: '红队', blue: '蓝队' };
@@ -31,6 +31,10 @@ const saveBattleData = element('save-battle-data');
 const copyPreviousData = element('copy-previous-data');
 const savePreviousData = element('save-previous-data');
 const battleDataFeedback = element('battle-data-feedback');
+const archiveRound = element('archive-round');
+const archiveTools = element('battle-data-tools');
+const archiveDownload = element('download-bet-data');
+let listedArchive;
 const thresholdInput = element('bet-threshold');
 const betSeconds = element('bet-seconds');
 const battleSeconds = element('battle-seconds');
@@ -316,7 +320,7 @@ function render(session, now) {
   progress.hidden = stage.phase !== 'battle';
   progress.value = stage.progress ?? 0;
   const showBattle = ['battle', 'settling', 'result'].includes(stage.phase);
-  const replay = showBattle ? replayFor(round.snapshot.battle, battleMs, round.board, round.combatRules, fireRevisionFor(round)) : null;
+  const replay = showBattle ? replayForRound(round) : null;
   const frame = replay ? frameAt(replay, stage.elapsedMs ?? battleMs) : null;
   const latestEffects = stage.phase === 'bet' ? round.lastEffects : [];
   renderBoard(round, teams, frame, latestEffects);
@@ -351,6 +355,7 @@ function render(session, now) {
     const change = stake && (winner === 'void' || winner === 'draw') ? '退回投入' : '本次入账';
     element('result-credit').textContent = `${change} ${credit} 点 · 结算后余额 ${balanceAfter} 点`;
   }
+  void refreshArchiveList();
   element('previous').hidden = !previous || Boolean(round.result);
   if (previous) {
     element('previous-summary').textContent = `第 ${previous.round} 轮 · ${resultLabel(previous.winner)} · 净变化 ${signed(previous.net)} 点 · 结算后余额 ${previous.balanceAfter} 点`;
@@ -366,8 +371,10 @@ async function refresh() {
     if (pendingCheck && !submitting) {
       const saved = sessionStorage.getItem(pendingKey);
       if (saved) {
-        const receipt = findReceipt(session, JSON.parse(saved));
-        element('notice').textContent = receipt ? receiptMessage(receipt) : '上一笔未查到确认记录，请核对本轮投入。';
+        const request = JSON.parse(saved);
+        const archived = await archivedBetResult(request);
+        const receipt = archived?.receipt ?? findReceipt(session, request);
+        element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
         sessionStorage.removeItem(pendingKey);
       }
       pendingCheck = false;
@@ -400,7 +407,7 @@ form.addEventListener('submit', async (event) => {
   renderControls(session, phase);
   try {
     sessionStorage.setItem(pendingKey, JSON.stringify(request));
-    const response = await updateSession((current, now) => placeBet(current, now, request));
+    const response = await submitArchivedBet(request);
     render(response.session, response.now);
     element('notice').textContent = response.receipt ? receiptMessage(response.receipt) : response.error;
     sessionStorage.removeItem(pendingKey);
@@ -414,6 +421,56 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+function downloadJson(contents, filename) {
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }));
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function refreshArchiveList() {
+  const session = displayed?.session;
+  if (!session || !archiveTools.open) return;
+  const identity = `${session.id}/${session.round.number}`;
+  if (listedArchive === identity) return;
+  listedArchive = identity;
+  try {
+    const rounds = await archiveRoundNumbers(session.id);
+    if (listedArchive !== identity) return;
+    const selected = archiveRound.value;
+    archiveRound.replaceChildren(new Option('当局', ''), ...rounds.filter((number) => number !== session.round.number)
+      .reverse().map((number) => new Option(`第 ${number} 局`, number)));
+    if (rounds.includes(Number(selected)) && Number(selected) !== session.round.number) archiveRound.value = selected;
+    archiveDownload.disabled = false;
+  } catch {
+    listedArchive = undefined;
+    battleDataFeedback.textContent = '暂时无法读取战局存档。';
+  }
+}
+
+archiveTools.addEventListener('toggle', () => void refreshArchiveList());
+archiveDownload.addEventListener('click', async () => {
+  const indicated = displayed?.session;
+  if (!indicated) return;
+  const number = Number(archiveRound.value) || indicated.round.number;
+  try {
+    const { session } = await updateSession();
+    const data = session.id === indicated.id ? await exportArchivedRound(session.id, number) : null;
+    if (!data) {
+      battleDataFeedback.textContent = '这局存档已清除或不可用。';
+      return;
+    }
+    downloadJson(JSON.stringify(data), `bet-data-round-${number}.json`);
+    const until = data.battle_log?.recordedThroughMs;
+    battleDataFeedback.textContent = data.battle_log?.complete || until == null ? `已请求下载第 ${number} 局完整包。`
+      : `已请求下载第 ${number} 局完整包，回放记录至开战后 ${until / 1000} 秒。`;
+  } catch {
+    battleDataFeedback.textContent = '暂时无法导出战局存档。';
+  }
+});
+
 function exportBattleData(previous, download) {
   const shown = displayed;
   if (!shown) return;
@@ -423,12 +480,7 @@ function exportBattleData(previous, download) {
   const elapsedMs = previous ? null : Math.max(0, now - session.round.startedAt);
   const payload = JSON.stringify(battleDataReport(data, previous ? 'result' : phase, elapsedMs));
   if (download) {
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
-    link.href = url;
-    link.download = `battle-data-round-${data.number}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadJson(payload, `battle-data-round-${data.number}.json`);
     battleDataFeedback.textContent = `已请求下载第 ${data.number} 局数据。`;
     return;
   }
@@ -457,7 +509,7 @@ timingForm.addEventListener('submit', async (event) => {
   savingTiming = true;
   renderTiming(displayed.session);
   try {
-    const saved = await updateSession((session, now) => saveRoundDurations(session, now, bet, battle, battleProfile.value, thresholdInput.valueAsNumber));
+    const saved = await updateSession((session, now, observe) => saveRoundDurations(session, now, bet, battle, battleProfile.value, thresholdInput.valueAsNumber, observe));
     if (!saved.error) timingDraft = false;
     render(saved.session, saved.now);
     element('timing-feedback').textContent = saved.error ?? '已保存，从下一轮生效。';

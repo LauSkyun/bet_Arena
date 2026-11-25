@@ -50,7 +50,7 @@ function initialHp(value, maximum) {
   return value;
 }
 
-function makeState(loadout, board, combatRules, gm) {
+function makeState(loadout, board, combatRules, gm, captureEvents) {
   const occupationIncludesSpecial = combatRules >= baseVictoryRules;
   const owners = openingGround(board);
   const terrain = Object.fromEntries(Object.keys(owners).map((key) => [key, 'ground']));
@@ -97,7 +97,7 @@ function makeState(loadout, board, combatRules, gm) {
     }
   }
   if (gm && units.some(u => !onBoard(u.at, board) || !passable(terrain, u.at, board))) throw Error('测试兵所在格不可通行');
-  return { terrain, owners, buildings, units, sequence, gm };
+  return { terrain, owners, buildings, units, sequence, gm, captureEvents };
 }
 
 const passable = (terrain, at, board) => {
@@ -179,7 +179,7 @@ function directDamage(unit) {
 function recordAttack(state, strikes, attacker, target, range, power, metadata, showDetails) {
   state.shots.push({ side: attacker.side, name: attacker.name, from: attacker.at, to: target.at, range, ...metadata,
     ...(showDetails ? { attackerId: attacker.id, targetId: target.id,
-      targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name + '营' : '基地'), power, before: target.hp } : {}) });
+      targetName: target.name ?? (target.kind === 'barracks' ? target.unit.name + '营' : target.kind === 'base' ? '基地' : '基础卒'), power, before: target.hp } : {}) });
   const damage = (strikes.get(target.id)?.damage ?? 0) + power;
   strikes.set(target.id, { target, damage });
 }
@@ -250,7 +250,8 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   const canHeal = combatRules >= groundHealingRules;
   const canUseArea = combatRules >= groundAreaRules;
   const unitTargets = canUseArea ? state.units.filter(isGroundTarget) : state.units;
-  const showAttackDetails = state.gm || canUseArea;
+  const showAttackDetails = state.gm || canUseArea || state.captureEvents;
+  state.events = state.captureEvents ? [] : undefined;
   if (elapsed === 0) arrivals.push(...state.units);
   else {
     const reservedDamage = reservedPlanning ? new Map() : undefined;
@@ -277,6 +278,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     for (const { unit, at } of moves) {
       unit.lastAt = at ? unit.at : null;
       if (!at) continue;
+      if (state.events) state.events.push({ kind: 'move', id: unit.id, side: unit.side, name: unit.name, from: unit.at, to: at });
       unit.at = at;
       if (unit.moveMs) unit.nextMove = elapsed + unit.moveMs;
       arrivals.push(unit);
@@ -349,10 +351,10 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     if (state.damage) state.damage[enemy(target.side)] += Math.min(target.hp, damage);
     target.hp = target.hp - damage + healing;
   }
-  if (canHeal) {
+  if (canHeal || state.captureEvents) {
     const remaining = new Map();
     for (const shot of state.shots) {
-      if (shot.effect !== 'heal' && !canUseArea) continue;
+      if (shot.effect !== 'heal' && !canUseArea && !state.captureEvents) continue;
       const strike = strikes.get(shot.targetId);
       shot.after = consumed.has(shot.targetId) ? 0 : Math.max(0, strike.target.hp);
       if (shot.effect === 'heal') continue;
@@ -396,6 +398,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
         ...(state.gm ? { level: building.level } : {}),
         source: building.id, target: null, nextAttack: elapsed };
       state.units.push(unit);
+      if (state.events) state.events.push({ kind: 'spawn', id: unit.id, side: unit.side, name: unit.name, at: unit.at, source: unit.source, hp: unit.hp });
       arrivals.push(unit);
     }
     if (live + count === building.unit.limit) building.nextSpawn = null;
@@ -412,18 +415,18 @@ export function countGround(owners, terrain) {
 }
 
 function frame(state, elapsed, combatRules) {
-  return { elapsed, shots: state.shots, scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
+  return { elapsed, shots: state.shots, ...(state.events ? { events: state.events } : {}), scores: countGround(state.owners, state.terrain), terrain: { ...state.terrain }, owners: { ...state.owners },
     buildings: state.buildings.map(({ id, side, kind, at, hp }) => ({ id, side, kind, at, hp })),
     units: state.units.map(({ id, side, at, hp, maxHp, level, name, range, source, plannedTarget, hit }) => ({ id, side, at, hp, name, range, source,
       ...(state.gm ? { maxHp, level } : {}),
       ...(combatRules >= splitPursuitRules ? { target: plannedTarget ?? null, hit: hit ?? null } : {}) })) };
 }
 
-export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision, gm = false) {
+export function simulateBattle(loadout, durationMs, board = currentBoard, combatRules = currentCombatRules, fireRevision = currentFireRevision, gm = false, captureEvents = false) {
   try {
     if (!Number.isSafeInteger(durationMs) || durationMs < 0) throw Error('Invalid battle duration');
     const usesBaseVictory = combatRules >= baseVictoryRules;
-    const state = makeState(loadout, board, combatRules, gm);
+    const state = makeState(loadout, board, combatRules, gm, captureEvents);
     if (combatRules === damageTiebreakRules) state.damage = { red: 0, blue: 0 };
     const frames = [];
     let fallenBases = [];
@@ -457,11 +460,11 @@ export function simulateBattle(loadout, durationMs, board = currentBoard, combat
 
 // A refresh regenerates the same stream from the persisted sealed roster. Keep only the latest two streams in memory.
 const replays = new Map();
-export function replayFor(loadout, durationMs, board, combatRules = currentCombatRules, fireRevision = currentFireRevision) {
-  const key = JSON.stringify([board, combatRules, fireRevision, durationMs, loadout]);
+export function replayFor(loadout, durationMs, board, combatRules = currentCombatRules, fireRevision = currentFireRevision, captureEvents = false) {
+  const key = JSON.stringify([board, combatRules, fireRevision, durationMs, captureEvents, loadout]);
   if (!replays.has(key)) {
     if (replays.size >= 2) replays.delete(replays.keys().next().value);
-    replays.set(key, simulateBattle(loadout, durationMs, board, combatRules, fireRevision));
+    replays.set(key, simulateBattle(loadout, durationMs, board, combatRules, fireRevision, false, captureEvents));
   }
   return replays.get(key);
 }

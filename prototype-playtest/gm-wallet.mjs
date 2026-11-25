@@ -1,4 +1,4 @@
-import { sessionKey, updateSession, updateTestBalance } from './storage.mjs';
+import { observeSessionChange, updateSession, updateTestBalance } from './storage.mjs';
 import { previewTestBalance } from './test-wallet.mjs';
 
 const pendingKey = 'bet-arena.gm.pending-test-balance.v1';
@@ -79,9 +79,7 @@ export function setupTestWallet() {
       void apply({ sessionId: latest.id, requestId: crypto.randomUUID(), direction: direction.value, amount: amount.valueAsNumber });
     }
   });
-  window.addEventListener('storage', (event) => {
-    if (event.key === sessionKey || event.key === null) void refresh();
-  });
+  observeSessionChange(() => void refresh());
   window.addEventListener('pageshow', () => void refresh());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void refresh();
