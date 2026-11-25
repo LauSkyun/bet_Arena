@@ -1,5 +1,5 @@
 import { baseDefenseRules, startingPositions, barracksLimit, boardColumns, boardRows, currentBoard, distance, expansionExits, hasExpansion, keyAt, mapFor, neighbours, onBoard, openingOwner } from './roster.mjs';
-import { groundAreaLabels, isGroundTarget, secondaryGroundTargets } from './ground-area.mjs';
+import { groundAreaLabels, isGroundTarget, isSplashEffect, secondaryGroundTargets } from './ground-area.mjs';
 
 export const battleRules = Object.freeze({ stepMs: 500, spawnMs: 500, sense: 4, baseHp: 240, barracksHp: 120 });
 export const previousCombatRules = 1;
@@ -11,6 +11,7 @@ const unitRoleRules = 6;
 export const groundProductionRules = 9;
 export const groundHealingRules = 10;
 export const groundAreaRules = 11;
+export const groundSelfDestructRules = 12;
 export const currentCombatRules = baseDefenseRules;
 // Candidate rounds created before the fire-lock correction keep their sealed behavior.
 export const currentFireRevision = 2;
@@ -283,9 +284,11 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
   }
 
   const strikes = new Map();
+  const consumed = new Set();
   state.shots = [];
   for (const unit of state.units) {
-    if (unit.effect === 'heal' || unit.effect === 'self-destruct') continue;
+    const selfDestruct = unit.effect === 'self-destruct';
+    if (unit.effect === 'heal' || (selfDestruct && combatRules < groundSelfDestructRules)) continue;
     const areaEffect = canUseArea && Object.hasOwn(groundAreaLabels, unit.effect);
     const heavyFire = roles && unit.tier === '重型';
     const legacyCandidate = reservedPlanning && fireRevision === 1;
@@ -300,12 +303,13 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     recordAttack(state, strikes, unit, target, unit.range, power,
       areaEffect ? { effect: unit.effect, primary: true } : {}, showAttackDetails);
     if (areaEffect) {
-      const secondaryPower = unit.effect === 'splash' ? Math.floor(power / 2) : power;
+      const secondaryPower = isSplashEffect(unit.effect) ? Math.floor(power / 2) : power;
       for (const victim of secondaryGroundTargets(unit, target, unitTargets, board)) {
         recordAttack(state, strikes, unit, victim, unit.range, secondaryPower, { effect: unit.effect, primary: false }, showAttackDetails);
       }
     }
-    unit.nextAttack = nextActionAt(unit, elapsed);
+    if (selfDestruct) consumed.add(unit.id);
+    else unit.nextAttack = nextActionAt(unit, elapsed);
   }
   if (combatRules >= baseDefenseRules) {
     for (const base of state.buildings) {
@@ -350,7 +354,7 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     for (const shot of state.shots) {
       if (shot.effect !== 'heal' && !canUseArea) continue;
       const strike = strikes.get(shot.targetId);
-      shot.after = Math.max(0, strike.target.hp);
+      shot.after = consumed.has(shot.targetId) ? 0 : Math.max(0, strike.target.hp);
       if (shot.effect === 'heal') continue;
       // Attribute capped damage in shot order, including any healing queued this beat.
       const health = remaining.get(shot.targetId) ?? shot.before + (strike.healing ?? 0);
@@ -364,7 +368,8 @@ export function advanceBattle(state, elapsed, board = currentBoard, combatRules 
     state.terrain[key] = 'ruins';
     if (occupationIncludesSpecial) state.owners[key] = building.side;
   }
-  state.units = state.units.filter(({ hp }) => hp > 0);
+  // A triggered unit leaves this beat even if other events restore its HP.
+  state.units = state.units.filter(({ id, hp }) => hp > 0 && !consumed.has(id));
   state.buildings = state.buildings.filter(({ hp }) => hp > 0);
 
   const livePerSource = new Map();

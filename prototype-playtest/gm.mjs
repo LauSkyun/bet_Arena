@@ -1,4 +1,4 @@
-import { groundAreaRules, groundHealingRules } from './battle.mjs';
+import { groundAreaRules, groundHealingRules, groundSelfDestructRules } from './battle.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { groundUnits } from './ground-units.mjs';
 import { barracksLabel, glyphFor } from './board-display.mjs';
@@ -6,8 +6,8 @@ import { boardColumns, boardRows, expansionExits, keyAt, openingOwner } from './
 import { teams, addBuilding, addSoldier, legalSites, mirrorScenario, newScenario, runScenario, setBuildingLevel, setHealth } from './gm-scenario.mjs';
 
 const el = id => document.getElementById(id);
-const key = 'bet-arena.gm.ground-area.v1';
-const previousKeys = ['bet-arena.gm.ground-healing.v1', 'bet-arena.gm.ground-production.v1'];
+const key = 'bet-arena.gm.ground-self-destruct.v1';
+const previousKeys = ['bet-arena.gm.ground-area.v1', 'bet-arena.gm.ground-healing.v1', 'bet-arena.gm.ground-production.v1'];
 const teamName = { red: '红', blue: '蓝' };
 let round = newScenario(), index = -1, replay, timer, selected = [1,4];
 let objects = [];
@@ -80,7 +80,8 @@ function render() {
   el('play').textContent=timer?'暂停':'播放';
   const status = editing ? '布阵中' : `${frame.elapsed/1000} 秒 · 红 ${frame.scores.red} 格，蓝 ${frame.scores.blue} 格${last?' · '+({red:'红胜',blue:'蓝胜',draw:'平局'}[replay.result.winner]):''}`;
   const oldRules = round.combatRules < groundHealingRules ? ' · 旧规则：未启用治疗和范围伤害'
-    : round.combatRules < groundAreaRules ? ' · 旧规则：范围技能仅直击' : '';
+    : round.combatRules < groundAreaRules ? ' · 旧规则：范围技能仅直击'
+    : round.combatRules < groundSelfDestructRules ? ' · 旧规则：未启用自爆' : '';
   el('state').textContent = status + oldRules;
   el('hits').replaceChildren();
   for (const shot of frame?.shots ?? []) {
@@ -90,7 +91,8 @@ function render() {
     const effect = shot.effect === 'heal' ? `实际治疗 ${shot.power}` : Object.hasOwn(groundAreaLabels, shot.effect)
       ? `${groundAreaLabels[shot.effect]}${shot.primary ? '主目标' : '附带'}，实际伤害 ${shot.applied}` : `攻击 ${shot.power}`;
     const after = shot.after ?? victim?.hp ?? 0;
-    item.textContent = `${teamName[shot.side]}${shot.name} #${shot.attackerId} → ${keyAt(shot.to)} 的${shot.targetName} #${shot.targetId}，${effect}，目标本拍生命 ${shot.before} → ${after}`;
+    const consumed = shot.effect === 'self-destruct' && shot.primary ? '，爆虫本拍自耗' : '';
+    item.textContent = `${teamName[shot.side]}${shot.name} #${shot.attackerId} → ${keyAt(shot.to)} 的${shot.targetName} #${shot.targetId}，${effect}，目标本拍生命 ${shot.before} → ${after}${consumed}`;
     el('hits').append(item);
   }
   save();
