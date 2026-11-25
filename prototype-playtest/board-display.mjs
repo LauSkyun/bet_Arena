@@ -13,6 +13,20 @@ export const barracksLabel = (name) => labels.get(name)?.[0] ?? Array.from(name)
 export const glyphFor = (name) => labels.get(name)?.[1] ?? (!name || name === '基础卒' ? '卒' : Array.from(name)[0]);
 export const unitName = (name) => name || '基础卒';
 
+export function battleResultReason({ winner, scores, fallenBases, decidedBy, damage }) {
+  if (winner === 'void' || !scores) return '';
+  const fallen = Array.isArray(fallenBases) ? fallenBases.filter((side) => side === 'red' || side === 'blue') : [];
+  if (fallen.includes('red') && fallen.includes('blue')) return '双方主基地同拍被摧毁，按占格判定';
+  const defeatedSide = fallen[0] ?? (decidedBy === 'base' ? { red: 'blue', blue: 'red' }[winner] : undefined);
+  if (defeatedSide) return `${defeatedSide === 'red' ? '红队' : '蓝队'}主基地被摧毁`;
+  if (decidedBy === 'damage' || (damage && scores.red === scores.blue)) {
+    return Number.isFinite(damage?.red) && Number.isFinite(damage?.blue)
+      ? `占格相同，比较有效伤害 · 红 ${damage.red}／蓝 ${damage.blue}`
+      : '占格相同，按有效伤害判胜';
+  }
+  return winner === 'draw' ? '战斗到时，双方占格相同' : '战斗到时，按占格判胜';
+}
+
 export function troopsByTile(units) {
   const tiles = new Map();
   for (const { at, side, name, range } of units) {
