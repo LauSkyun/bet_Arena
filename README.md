@@ -1,4 +1,12 @@
-# 竞猜竞技场 · V1.1.0
+# 竞猜竞技场
+
+## V2.1 地面试玩
+
+develop 当前整合 19 种地面兵、对应技能、完整战局包和 GM 导入重播，待 #game研讨会:#48 整局体验确认。将以下启动命令用于当前检出即可试玩。工作机统一入口为 <http://localhost:8766/arena-v21/>。
+
+[项目指引](AGENTS.md) · [当前玩法](requirements/overview.md#5-v21-地面版与验收入口) · [测试档案](testing/README.md) · [功能知识](knowledge/README.md)
+
+## 已发布的 V1.1.0
 
 在本机用测试积分支持红队或蓝队，累计投入推动建营和升级。封盘后，兵营在六边形棋盘上自动出兵，按拆基地或终局占格决定胜负，再按封盘回报率结算。
 
@@ -37,9 +45,3 @@ python3 -m http.server 8766 --bind 127.0.0.1 --directory prototype-playtest
 [玩法总纲](requirements/overview.md) · [下注与封盘](requirements/02-betting/requirement.md) · [自动战斗](requirements/04-battle/requirement.md) · [棋盘界面](requirements/06-arena-ui/requirement.md)
 
 [兵种职责与射程](testing/runs/2026-11-24-unit-roles-sc-board-independent.md) · [兵营出兵](testing/runs/2026-11-24-barracks-only-independent.md) · [基地防守](testing/runs/2026-11-24-base-defense-independent.md) · [建筑血条及窄屏复测](testing/runs/2026-11-24-building-health-independent.md) · [百点门槛与跨轮设置](testing/runs/2026-11-24-bet-threshold-independent.md)
-
-## V2.1 基础出兵候选 · #39
-
-本分支沿用上面的本机启动命令（在当前分支根目录执行）。打开试玩页自动使用 19 种地面兵的基础出兵配置，在正常下注阶段触发建营和升级，封盘后可下载战局重演。范围伤害、治疗和自爆按后续技能计划接入。能力范围及复现见[实现记录](requirements/03-build-and-roster/implementation.md)。
-
-在本分支的棋盘旁点「GM 测试面板」可进入独立布阵局。封盘后可逐拍查看目标与生命、原样重开，或下载测试局 JSON 后用同一个战局重演命令复查。
