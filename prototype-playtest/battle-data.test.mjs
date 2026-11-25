@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { legacyReference } from './betting.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { currentCombatRules, damageTiebreakRules, reversalCombatRules, simulateBattle } from './battle.mjs';
 import { advance, newSession, placeBet, sessionVersion, timeline } from './round.mjs';
 import { upgradeSession } from './storage.mjs';
 
 const equalStakes = () => {
-  let session = newSession('private-session-id', 1234, undefined, 0);
+  let session = newSession('private-session-id', 1234, legacyReference, 0);
   session.round.threshold = 10; // Recorded pre-update battle.
   for (const side of ['red', 'blue']) {
     session = placeBet(session, 2234, {

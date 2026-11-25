@@ -4,17 +4,17 @@ import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
 import { fireRevisionFor, groundSelfDestructRules, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
-import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
+import { betting, initialBetting, defaultRoundReference, maxReferenceThreshold, referenceForRound, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 18;
+export const sessionVersion = 19;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
 const catchUpBatch = 32;
 
-export function newSession(id, now, reference = defaultReference, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold) {
-  return { version: sessionVersion, id, seed, reference, nextDurations: durations, nextProfile: profile, nextThreshold: threshold, balance: betting.initialBalance,
-    round: newRound(1, now, seed, durations, board, profile, threshold), previous: null };
+export function newSession(id, now, reference = undefined, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold) {
+  return { version: sessionVersion, id, seed, ...(reference === undefined ? {} : { reference }), nextDurations: durations, nextProfile: profile, nextThreshold: threshold, balance: betting.initialBalance,
+    round: newRound(1, now, seed, durations, board, profile, threshold, reference), previous: null };
 }
 
 function seedFor(seed, number, side) {
@@ -24,12 +24,13 @@ function seedFor(seed, number, side) {
   return (value ^ (value >>> 15)) >>> 0;
 }
 
-function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold) {
+function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, reference) {
   return {
     number,
     board,
     profile,
     threshold,
+    reference: reference ?? defaultRoundReference(threshold),
     combatRules: profile === groundProfile ? groundSelfDestructRules : currentCombatRules,
     fireRevision: currentFireRevision,
     startedAt,
@@ -57,7 +58,7 @@ export function advance(session, now, observe) {
   for (let processed = 0; processed < catchUpBatch; processed++) {
     const round = session.round;
     const lock = round.startedAt + round.durations.betMs;
-    const sealed = advanceBetting(round, session.reference, lock, now, observe?.reference);
+    const sealed = advanceBetting(round, referenceForRound(round, session.reference), lock, now, observe?.reference);
     if (sealed !== round) session = { ...session, round: sealed };
     if (now < lock + lockMs) break;
     const time = timeline(sealed);
@@ -68,7 +69,7 @@ export function advance(session, now, observe) {
 
     lastFinished = session.round;
     observe?.finished(lastFinished);
-    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold) };
+    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold, session.reference) };
   }
   if (!lastFinished) return session;
   const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };
@@ -103,5 +104,6 @@ export function saveRoundDurations(session, now, betSeconds, battleSeconds, prof
   if (!durations) return { session: current, error: `下注和战斗时长均须为 1–${secondsLimit} 秒的整数。` };
   if (!Object.hasOwn(profiles, profile)) return { session: current, error: '请选择已支持的数值配置。' };
   if (!Number.isSafeInteger(threshold) || threshold < 1) return { session: current, error: '每次强化所需点数须为正整数。' };
+  if (threshold > maxReferenceThreshold) return { session: current, error: '每次强化所需点数超出回报率可精确计算的范围。' };
   return { session: { ...current, nextDurations: durations, nextProfile: profile, nextThreshold: threshold } };
 }

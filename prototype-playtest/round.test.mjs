@@ -68,14 +68,14 @@ test('scheduled red and blue reference bets apply once and share the player thre
   let session = newSession('session-a', start);
   assert.equal(advance(session, start + 3999).round.teams.red.total, 0);
   session = advance(session, start + 4000);
-  assert.equal(session.round.teams.red.system, 10);
+  assert.equal(session.round.teams.red.system, 100);
   assert.equal(session.balance, 10000);
   const player = place(session, 'contribution', 'red', 90, start + 5000);
-  assert.equal(player.receipt.effects[0].level, 1);
+  assert.equal(player.receipt.effects.length, 0);
   session = advance(player.session, start + 8000);
   const { total, player: points, system } = session.round.teams.red;
-  assert.deepEqual({ total, points, system }, { total: 100, points: 90, system: 10 });
-  assert.equal(session.round.teams.blue.system, 10);
+  assert.deepEqual({ total, points, system }, { total: 190, points: 90, system: 100 });
+  assert.equal(session.round.teams.blue.system, 100);
   assert.equal(session.balance, 9910);
   assert.equal(advance(session, start + 8200), session);
 });
@@ -139,8 +139,8 @@ test('catch-up freezes the right round and credit persists across rounds without
   assert.equal(resumed.balance, advance(first, time.finish).balance);
   assert.equal(resumed.round.number, 8);
   assert.equal(resumed.previous.round, 7);
-  assert.equal(resumed.round.snapshot.teams.red.system, 10);
-  assert.equal(resumed.round.snapshot.teams.blue.system, 10);
+  assert.equal(resumed.round.snapshot.teams.red.system, 100);
+  assert.equal(resumed.round.snapshot.teams.blue.system, 100);
   let stepped = first;
   for (let i = 0; i < 7; i++) {
     const locked = advance(stepped, timeline(stepped.round).lock);

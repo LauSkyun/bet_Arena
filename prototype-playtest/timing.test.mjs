@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { damageTiebreakRules, replayFor } from './battle.mjs';
 import { advance, newSession, placeBet, saveRoundDurations, timeline, view } from './round.mjs';
+import { battleDataFor } from './battle-data.mjs';
+import { legacyReference, maxReferenceThreshold } from './betting.mjs';
 import { upgradeSession } from './storage.mjs';
 
 const newGame = () => newSession('timing', 0, [], 3);
@@ -84,4 +86,41 @@ test('a threshold edit applies on rollover only, including after restore of a v1
   const restored = upgradeSession(legacy);
   assert.equal(placeBet(restored, 1, { ...ticket, amount: 10 }).receipt.effects.length, 1);
   assert.equal(advance(restored, timeline(restored.round).next).round.threshold, 100);
+});
+
+
+test('legacy default contributions stay frozen through settlement and the next round uses the saved threshold', () => {
+  const original = newSession('reference-migration', 0, undefined, 0);
+  const legacy = { ...original, version: 18, reference: legacyReference, nextThreshold: 35 };
+  delete legacy.round.reference;
+  const inProgress = advance(legacy, 4_000);
+  const recovered = upgradeSession(JSON.parse(JSON.stringify(inProgress)));
+  const observed = [];
+  const observe = { reference: (_, event) => observed.push(event.amount), finished() {} };
+  const sealed = advance(recovered, 60_000, observe);
+  assert.deepEqual(observed, [10]);
+  assert.deepEqual(battleDataFor(sealed.round).reference.map(({ amount }) => amount), [10, 10]);
+  const nextAt = timeline(sealed.round).next;
+  const next = advance(sealed, nextAt + 8_000, observe);
+  assert.deepEqual(next.previous.battleData.reference.map(({ amount }) => amount), [10, 10]);
+  assert.deepEqual(next.round.reference.map(({ amount }) => amount), [35, 35]);
+  assert.deepEqual(observed, [10, 35, 35]);
+  for (const team of Object.values(next.round.teams)) {
+    assert.equal(team.system, 35);
+    assert.equal(team.roster.barracks.length, 1);
+  }
+  assert.equal(next.balance, 10_000);
+});
+
+test('saving a new contribution preserves this round and an event at cutoff is excluded', () => {
+  const start = newSession('next-reference', 0, undefined, 0);
+  const saved = saveRoundDurations(start, 0, 8, 5, undefined, 25).session;
+  assert.equal(saveRoundDurations(start, 0, 8, 5, undefined, maxReferenceThreshold + 1).session, start);
+  const current = advance(saved, 8_000);
+  assert.deepEqual(Object.values(current.round.teams).map(({ system }) => system), [100, 100]);
+  const nextAt = timeline(advance(current, 60_000).round).next;
+  const next = advance(advance(current, 60_000), nextAt + 8_000);
+  assert.deepEqual(Object.values(next.round.teams).map(({ system }) => system), [25, 0]);
+  assert.equal(next.round.snapshot.battle.red.barracks.length, 1);
+  assert.equal(next.round.snapshot.battle.blue.barracks.length, 0);
 });

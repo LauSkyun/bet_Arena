@@ -1,5 +1,5 @@
 import { battleLoadout } from './roster.mjs';
-import { stakesFor } from './betting.mjs';
+import { referenceForRound, stakesFor } from './betting.mjs';
 import { returnsFor } from './returns.mjs';
 
 const sides = ['red', 'blue'];
@@ -17,7 +17,7 @@ export function battleDataFor(round, reference) {
     rates: snapshot ? snapshot.rates : returnsFor(teams),
     totals: Object.fromEntries(sides.map((side) => [side, teams[side].total])),
     bets: round.receipts.map(({ side, amount, confirmedAt }) => ({ side, amount, elapsedMs: confirmedAt - round.startedAt })),
-    reference,
+    reference: referenceForRound(round, reference),
     loadout,
     result: result ? Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'receipts' && key !== 'settledAt')) : null,
   };

@@ -2,10 +2,29 @@ import { returnsFor } from './returns.mjs';
 import { battleLoadout, enhanceRoster, isRosterFull, newRoster } from './roster.mjs';
 
 export const betting = Object.freeze({ initialBalance: 10_000, threshold: 100 });
-export const defaultReference = Object.freeze([
+export const legacyReference = Object.freeze([
   Object.freeze({ elapsed: 4_000, side: 'red', amount: 10 }),
   Object.freeze({ elapsed: 8_000, side: 'blue', amount: 10 }),
 ]);
+export function referenceForRound(round, fallback = legacyReference) {
+  return round.reference ?? fallback;
+}
+
+// Keep percentage arithmetic exact even while only one side has received its system contribution.
+export const maxReferenceThreshold = Math.floor(Number.MAX_SAFE_INTEGER / 280);
+
+export function defaultRoundReference(threshold) {
+  const amount = threshold <= maxReferenceThreshold ? threshold : legacyReference[0].amount;
+  return legacyReference.map((event) => ({ ...event, amount }));
+}
+
+export function isLegacyReference(reference) {
+  return reference?.length === legacyReference.length && reference.every((event, index) => {
+    const original = legacyReference[index];
+    return event.side === original.side && event.elapsed === original.elapsed && event.amount === original.amount;
+  });
+}
+
 export const sides = Object.freeze(['red', 'blue']);
 
 const emptyTeam = (side, seed) => ({ total: 0, player: 0, system: 0, roster: newRoster(side, seed) });

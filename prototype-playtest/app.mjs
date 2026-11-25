@@ -4,7 +4,7 @@ import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
 import { battleRules, baseVictoryRules, groundHealingRules, groundAreaRules, groundSelfDestructRules, countGround, frameAt, openingGround } from './battle.mjs';
-import { findReceipt, isFull, sides, stakesFor } from './betting.mjs';
+import { findReceipt, isFull, referenceForRound, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { replayForRound, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
@@ -275,7 +275,11 @@ function renderControls(session, phase) {
 
 function renderTiming(session) {
   const describe = ({ betMs, battleMs }) => `下注 ${betMs / 1000} 秒 · 战斗 ${battleMs / 1000} 秒`;
-  element('timing-current').textContent = `本轮　${describe(session.round.durations)} · ${profiles[session.round.profile ?? arenaProfile]} · 每 ${session.round.threshold} 点强化`;
+  const contributions = referenceForRound(session.round, session.reference)
+    .filter(({ elapsed }) => elapsed < session.round.durations.betMs)
+    .map(({ side, amount }) => `${teamName[side]} ${amount} 点`);
+  const reference = contributions.length ? ` · 系统投 ${contributions.join('、')}` : '';
+  element('timing-current').textContent = `本轮　${describe(session.round.durations)} · ${profiles[session.round.profile ?? arenaProfile]} · 每 ${session.round.threshold} 点强化${reference}`;
   element('timing-next').textContent = `下一轮　${describe(session.nextDurations)} · ${profiles[session.nextProfile ?? arenaProfile]} · 每 ${session.nextThreshold} 点强化`;
   if (!timingDraft) {
     thresholdInput.value = String(session.nextThreshold);
