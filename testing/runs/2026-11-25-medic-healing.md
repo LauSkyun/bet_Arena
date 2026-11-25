@@ -1,6 +1,6 @@
 # 2026-11-25 医疗兵地面治疗开发自测
 
-#game研讨会:#40，分支 `feat/40-medic-healing`，基线 `204f0ed7a724e9d3bc02f494048419f83f9ba903`。工作电脑的 [GM 候选](http://127.0.0.1:8773/gm.html) 和[普通竞猜候选](http://127.0.0.1:8773/) 共用一套源码。候选端口隔离日常试玩的浏览器存档。
+#game研讨会:#40，分支 `feat/40-medic-healing`，基线 `204f0ed7a724e9d3bc02f494048419f83f9ba903`。工作电脑用 `localhost` 打开候选，与日常试玩的 `127.0.0.1` 浏览器存档隔离。通过 HTTP 逐一核过 19 个运行文件，均与 `cbd7dec` 一致。[GM 候选](http://localhost:8765/arena-medic/gm.html) · [普通竞猜候选](http://localhost:8765/arena-medic/)
 
 | 场景 | 实测 |
 | --- | --- |
