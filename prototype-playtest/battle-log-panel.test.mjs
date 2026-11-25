@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { battleLogLines } from './battle-log-panel.mjs';
 import { recordedBattleFrames } from './battle-log.mjs';
+import { replayFromReport } from './replay-import.mjs';
 import { addSoldier, newScenario, runScenario } from './gm-scenario.mjs';
 
 test('archived frames feed the same log formatter for movement, spawning, ownership, damage and outcome', () => {
@@ -14,6 +15,16 @@ test('archived frames feed the same log formatter for movement, spawning, owners
   }
   assert.match(lines.at(-1), /^蓝队获胜 · 红队主基地被摧毁/);
   assert.ok(battleLogLines(frames[0], undefined, log.board).every((line) => !line.includes('获胜')));
+});
+
+test('an imported historical log with null fallenBases displays its final beat and recorded base victory', () => {
+  const { battle_log: log } = JSON.parse(readFileSync(new URL('../testing/fixtures/round-archive/complete.json', import.meta.url)));
+  log.result.fallenBases = null;
+  const { frames, result, board } = replayFromReport(log);
+  const lines = battleLogLines(frames.at(-1), frames.at(-2), board, result);
+  assert.equal(frames.length, 77);
+  assert.equal(frames.at(-1).elapsed, 38_000);
+  assert.match(lines.at(-1), /^蓝队获胜 · 红队主基地被摧毁/);
 });
 
 test('GM captures the healing action and final life even when the target explodes on the same beat', () => {
