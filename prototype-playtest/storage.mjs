@@ -20,7 +20,7 @@ function migrateResult(result, rates) {
 
 export function upgradeSession(saved) {
   if (!saved || saved.version === sessionVersion) return saved;
-  if (saved.version === 13) return { ...saved, version: sessionVersion };
+  if (saved.version === 13 || saved.version === 14) return { ...saved, version: sessionVersion };
   // Sessions through v12 used a fixed 10-point threshold for every wager in the open round.
   saved = { ...saved, round: { ...saved.round, threshold: 10 }, nextThreshold: betting.threshold };
   // Older tabs reject this version before they can settle a round with newer rules.

@@ -1,0 +1,404 @@
+{
+  "format": "bet-arena/battle-data",
+  "version": 1,
+  "phase": "result",
+  "elapsedMs": 87000,
+  "round": {
+    "number": 1,
+    "board": "hex-14",
+    "combatRules": 11,
+    "durations": {
+      "betMs": 60000,
+      "battleMs": 40000
+    },
+    "fireRevision": 2,
+    "profile": "sc-ground-v2.1-production",
+    "threshold": 100,
+    "sealed": true,
+    "stakes": {
+      "red": 600,
+      "blue": 600
+    },
+    "rates": {
+      "red": 144,
+      "blue": 144
+    },
+    "totals": {
+      "red": 600,
+      "blue": 600
+    },
+    "bets": [
+      {
+        "side": "red",
+        "amount": 600,
+        "elapsedMs": 1
+      },
+      {
+        "side": "blue",
+        "amount": 600,
+        "elapsedMs": 1
+      }
+    ],
+    "reference": [],
+    "loadout": {
+      "red": {
+        "side": "red",
+        "theme": "神族",
+        "base": [
+          1,
+          4
+        ],
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [
+          {
+            "at": [
+              2,
+              5
+            ],
+            "exit": [
+              2,
+              6
+            ],
+            "unit": {
+              "unitId": 12,
+              "origin": "神族",
+              "name": "狂热者",
+              "label": "狂热",
+              "glyph": "狂",
+              "quality": "绿",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 1000,
+              "moveMs": 1000,
+              "spawnMs": 4000,
+              "spawnCount": 1,
+              "limit": 6,
+              "sense": 4,
+              "hp": 100,
+              "damage": 24
+            },
+            "level": 1,
+            "side": "red"
+          },
+          {
+            "at": [
+              1,
+              5
+            ],
+            "exit": [
+              2,
+              6
+            ],
+            "unit": {
+              "unitId": 12,
+              "origin": "神族",
+              "name": "狂热者",
+              "label": "狂热",
+              "glyph": "狂",
+              "quality": "绿",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 1000,
+              "moveMs": 1000,
+              "spawnMs": 4000,
+              "spawnCount": 1,
+              "limit": 6,
+              "sense": 4,
+              "hp": 100,
+              "damage": 24
+            },
+            "level": 1,
+            "side": "red"
+          },
+          {
+            "at": [
+              2,
+              4
+            ],
+            "exit": [
+              2,
+              3
+            ],
+            "unit": {
+              "unitId": 16,
+              "origin": "神族",
+              "name": "金甲虫",
+              "label": "金甲",
+              "glyph": "甲",
+              "quality": "蓝",
+              "effect": "splash",
+              "range": 5,
+              "attackMs": 3000,
+              "moveMs": 1500,
+              "spawnMs": 10000,
+              "spawnCount": 1,
+              "limit": 2,
+              "sense": 5,
+              "hp": 74,
+              "damage": 100
+            },
+            "level": 1,
+            "side": "red"
+          },
+          {
+            "at": [
+              1,
+              6
+            ],
+            "exit": [
+              2,
+              6
+            ],
+            "unit": {
+              "unitId": 25,
+              "origin": "虫族",
+              "name": "猛犸",
+              "label": "猛犸",
+              "glyph": "犸",
+              "quality": "金",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 500,
+              "moveMs": 500,
+              "spawnMs": 14000,
+              "spawnCount": 1,
+              "limit": 2,
+              "sense": 4,
+              "hp": 280,
+              "damage": 28
+            },
+            "level": 1,
+            "side": "red"
+          },
+          {
+            "at": [
+              3,
+              4
+            ],
+            "exit": [
+              3,
+              3
+            ],
+            "unit": {
+              "unitId": 26,
+              "origin": "虫族",
+              "name": "蟑螂",
+              "label": "蟑螂",
+              "glyph": "蟑",
+              "quality": "绿",
+              "effect": "single",
+              "range": 3,
+              "attackMs": 1000,
+              "moveMs": 1000,
+              "spawnMs": 4000,
+              "spawnCount": 1,
+              "limit": 6,
+              "sense": 4,
+              "hp": 105,
+              "damage": 15
+            },
+            "level": 1,
+            "side": "red"
+          },
+          {
+            "at": [
+              1,
+              7
+            ],
+            "exit": [
+              2,
+              7
+            ],
+            "unit": {
+              "unitId": 2,
+              "origin": "人族",
+              "name": "陆战队员",
+              "label": "陆战",
+              "glyph": "陆",
+              "quality": "绿",
+              "effect": "single",
+              "range": 3,
+              "attackMs": 500,
+              "moveMs": 1000,
+              "spawnMs": 3000,
+              "spawnCount": 1,
+              "limit": 8,
+              "sense": 4,
+              "hp": 100,
+              "damage": 9
+            },
+            "level": 1,
+            "side": "red"
+          }
+        ],
+        "startingUnits": []
+      },
+      "blue": {
+        "side": "blue",
+        "theme": "神族",
+        "base": [
+          14,
+          4
+        ],
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [
+          {
+            "at": [
+              14,
+              3
+            ],
+            "exit": [
+              13,
+              3
+            ],
+            "unit": {
+              "unitId": 26,
+              "origin": "虫族",
+              "name": "蟑螂",
+              "label": "蟑螂",
+              "glyph": "蟑",
+              "quality": "绿",
+              "effect": "single",
+              "range": 3,
+              "attackMs": 1000,
+              "moveMs": 1000,
+              "spawnMs": 4000,
+              "spawnCount": 1,
+              "limit": 6,
+              "sense": 4,
+              "hp": 126,
+              "damage": 18
+            },
+            "level": 2,
+            "side": "blue"
+          },
+          {
+            "at": [
+              13,
+              4
+            ],
+            "exit": [
+              13,
+              3
+            ],
+            "unit": {
+              "unitId": 14,
+              "origin": "神族",
+              "name": "黑暗圣堂武士",
+              "label": "圣堂",
+              "glyph": "圣",
+              "quality": "紫",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 2000,
+              "moveMs": 1000,
+              "spawnMs": 6000,
+              "spawnCount": 1,
+              "limit": 4,
+              "sense": 4,
+              "hp": 108,
+              "damage": 78
+            },
+            "level": 2,
+            "side": "blue"
+          },
+          {
+            "at": [
+              14,
+              2
+            ],
+            "exit": [
+              14,
+              1
+            ],
+            "unit": {
+              "unitId": 12,
+              "origin": "神族",
+              "name": "狂热者",
+              "label": "狂热",
+              "glyph": "狂",
+              "quality": "绿",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 1000,
+              "moveMs": 1000,
+              "spawnMs": 4000,
+              "spawnCount": 1,
+              "limit": 6,
+              "sense": 4,
+              "hp": 100,
+              "damage": 24
+            },
+            "level": 1,
+            "side": "blue"
+          },
+          {
+            "at": [
+              13,
+              5
+            ],
+            "exit": [
+              13,
+              6
+            ],
+            "unit": {
+              "unitId": 27,
+              "origin": "虫族",
+              "name": "爆虫",
+              "label": "爆虫",
+              "glyph": "爆",
+              "quality": "蓝",
+              "effect": "self-destruct",
+              "range": 1,
+              "attackMs": 0,
+              "moveMs": 500,
+              "spawnMs": 4500,
+              "spawnCount": 1,
+              "limit": 5,
+              "sense": 4,
+              "hp": 30,
+              "damage": 68
+            },
+            "level": 1,
+            "side": "blue"
+          }
+        ],
+        "startingUnits": []
+      }
+    },
+    "result": {
+      "round": 1,
+      "status": "settled",
+      "winner": "red",
+      "scores": {
+        "red": 41,
+        "blue": 15
+      },
+      "stakes": {
+        "red": 600,
+        "blue": 600
+      },
+      "rates": {
+        "red": 144,
+        "blue": 144
+      },
+      "stake": 1200,
+      "credit": 864,
+      "net": -336,
+      "balanceAfter": 9664,
+      "decidedBy": "base",
+      "fallenBases": [
+        "blue"
+      ],
+      "endedAtMs": 25000
+    }
+  }
+}
