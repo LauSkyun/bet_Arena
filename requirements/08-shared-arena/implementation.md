@@ -24,3 +24,5 @@ node server/http.mjs
 - [Linux HTTP、SQLite 和 Windows Edge 开发自测](../../testing/runs/2026-11-25-shared-arena.md)。独立验收待 Cindy 使用原卡分节点执行。
 
 账号入口完成登录或退出后通知同浏览器的历史标签。历史恢复可见时重新查询当前会话，并在请求前清除原姓名、表格和下载入口。请求失效后，晚到的旧响应不会更新页面。[双标签复测](../../testing/runs/2026-11-25-shared-arena.md#双标签换账号复测)
+
+下注记录在 SQLite 原有 `bets.data` 中附加首次请求时点。导出保留确认和拒绝，按 UID 读取。旧回执可恢复确认时间，缺失的拒绝时点和系统强化保留为空并标记流水不完整。[归档复测](../../testing/runs/2026-11-25-shared-arena.md#本人拒绝记录复测)

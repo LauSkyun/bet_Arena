@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { replayFromReport } from '../prototype-playtest/replay-import.mjs';
 import { timeline } from '../prototype-playtest/round.mjs';
 import { winningCredit } from '../prototype-playtest/returns.mjs';
@@ -28,13 +29,21 @@ test('one SQLite arena settles each account, keeps requests replayable, and resu
   assert.equal(arena.bet(login.token, first).session.balance, 100);
   assert.equal(arena.bet(same.token, first).replayed, true);
   assert.match(arena.bet(same.token, { ...first, amount: 10 }).error, /不同/);
-  assert.match(arena.bet(same.token, request(login, 'blue', 110, 'insufficient')).error, /不足/);
+  now += 125;
+  const rejected = request(login, 'blue', 110, 'insufficient');
+  assert.match(arena.bet(same.token, rejected).error, /不足/);
+  now += 125;
+  assert.equal(arena.bet(login.token, rejected).replayed, true);
+  const currentLog = arena.archive(login.token, 1).archive.bet_log;
+  assert.equal(currentLog.complete, true);
+  assert.deepEqual(currentLog.entries[1], { source: 'player', requestId: 'insufficient', side: 'blue', amount: 110,
+    requestedRoundNumber: 1, elapsedMs: 125, accepted: false, error: '测试积分不足。', receipt: null, effects: [] });
   assert.equal(arena.bet(same.token, request(login, 'blue', 100, 'last')).session.balance, 0);
   assert.equal(arena.bet(bob.token, second).session.balance, 9700);
   assert.equal(arena.state(login.token).session.round.teams.blue.player, 100);
   assert.equal(arena.state(bob.token).session.round.teams.blue.player, 300);
   assert.equal(arena.state(bob.token).session.round.teams.red.total, 9900);
-  now += 10_000;
+  now = 110_000;
   const sealed = arena.state(bob.token).session.round;
   assert.equal(sealed.snapshot.teams.red.total, 10_000);
   assert.equal(sealed.snapshot.teams.blue.total, 500);
@@ -71,7 +80,12 @@ test('one SQLite arena settles each account, keeps requests replayable, and resu
   assert.equal(arena.archive(guest.token, 1).archive, null);
   const archive = arena.archive(bob.token, 1).archive;
   assert.deepEqual(archive.battle_log, settledLog);
-  assert.equal(archive.bet_log.entries.filter(({ source }) => source === 'player').length, 1);
+  assert.equal(archive.bet_log.complete, true);
+  assert.deepEqual(archive.bet_log.entries.filter(({ source }) => source === 'player').map(({ requestId, elapsedMs, accepted }) =>
+    [requestId, elapsedMs, accepted]), [['both-use-this-id', 250, true], ['late', 10_000, false]]);
+  assert.ok(archive.bet_log.entries.filter(({ source }) => source === 'system').every(({ effects }) => effects.length > 0));
+  assert.equal(arena.bet(login.token, rejected).replayed, true);
+  assert.equal(arena.archive(login.token, 1).archive.bet_log.entries.filter(({ requestId }) => requestId === 'insufficient').length, 1);
   assert.equal(replayFromReport(archive).result.winner, bobResult.winner);
   assert.equal(arena.bet(bob.token, second).replayed, true);
   arena.logout(login.token);
@@ -99,4 +113,32 @@ test('personal history uses a round cursor without losing or repeating entries',
     assert.deepEqual(second.entries.map(({ round }) => round), [2, 1]);
     assert.equal(second.next, null);
   } finally { arena.close(); }
+});
+
+
+test('older SQLite rows keep receipts and rejections with truthful missing timestamps', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'shared-arena-legacy-'));
+  const file = join(directory, 'arena.sqlite');
+  let now = 100;
+  const options = { clock: () => now };
+  let arena = openArena(file, options);
+  t.after(() => { arena.close(); rmSync(directory, { recursive: true, force: true }); });
+  const { account, token } = arena.login('Legacy');
+  const bet = (requestId, amount) => ({ sessionId: account.uid, roundNumber: 1, side: 'red', requestId, amount });
+  now += 100;
+  assert.ok(arena.bet(token, bet('accepted', 200)).receipt);
+  assert.match(arena.bet(token, bet('rejected', 10_000)).error, /不足/);
+  arena.close();
+  const old = new DatabaseSync(file);
+  old.exec("UPDATE bets SET data = json_remove(data, '$.requestedAt')");
+  old.close();
+  now += 200;
+  arena = openArena(file, options);
+  assert.equal(arena.bet(token, bet('rejected', 10_000)).replayed, true);
+  const { bet_log: log } = arena.archive(token, 1).archive;
+  assert.equal(log.complete, false);
+  assert.deepEqual(log.entries.map(({ requestId, elapsedMs, accepted }) => [requestId, elapsedMs, accepted]),
+    [['accepted', 100, true], ['rejected', null, false]]);
+  assert.match(log.entries[1].error, /不足/);
+  assert.equal(arena.state(token).session.balance, 9800);
 });

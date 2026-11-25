@@ -53,7 +53,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   const archivedRound = db.prepare('SELECT data FROM rounds WHERE number = ?');
   const hasArchive = db.prepare('SELECT 1 FROM rounds WHERE number = ?');
   const roundBets = db.prepare('SELECT uid, data FROM bets WHERE round = ? ORDER BY rowid');
-  const personalBets = db.prepare('SELECT data FROM bets WHERE uid = ? AND round = ? ORDER BY rowid');
+  const personalBets = db.prepare('SELECT request_id, side, amount, data FROM bets WHERE uid = ? AND round = ? ORDER BY rowid');
   const roundHistory = db.prepare('SELECT data FROM history WHERE uid = ? AND round = ?');
   const setHistory = db.prepare('INSERT INTO history VALUES (?, ?, ?)');
   const storeRound = db.prepare('INSERT INTO rounds VALUES (?, ?)');
@@ -73,8 +73,21 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
     }
   }
 
-  function logEntries(rows) {
+  function acceptedReceipts(rows) {
     return rows.map(parse).filter(({ receipt }) => receipt).map(({ receipt }) => receipt);
+  }
+
+  function archiveEntries(round, requests) {
+    const system = recoverBetEntries([], round.reference.slice(0, round.referenceIndex), round.startedAt);
+    for (const [index, entry] of system.entries()) entry.effects = round.referenceEffects?.[index + 1] ?? null;
+    const player = requests.map(({ request_id, side, amount, data }) => {
+      const { receipt = null, error = null, requestedAt = receipt?.confirmedAt } = JSON.parse(data);
+      return { source: 'player', requestId: request_id, side, amount, requestedRoundNumber: round.number,
+        elapsedMs: requestedAt == null ? null : Math.max(0, requestedAt - round.startedAt), accepted: Boolean(receipt), error,
+        receipt, effects: receipt?.effects ?? [] };
+    });
+    const entries = [...system, ...player].sort((a, b) => (a.elapsedMs ?? Infinity) - (b.elapsedMs ?? Infinity));
+    return { version: 1, entries, complete: entries.every(({ elapsedMs, effects }) => elapsedMs !== null && effects !== null) };
   }
 
   function personalRound(round, receipts) {
@@ -114,10 +127,19 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
 
   function tick(now) {
     const current = parse(load.get());
-    const moved = advance(current, now, { finished: (round) => settleRound(current, round) });
-    if (moved.round.result && (moved.round.number !== current.round.number || !current.round.result)) settleRound(moved, moved.round);
+    const observed = new Map();
+    const withReferenceEffects = (round) => observed.has(round.number)
+      ? { ...round, referenceEffects: { ...round.referenceEffects, ...observed.get(round.number) } } : round;
+    const moved = advance(current, now, {
+      reference(round, _event, index) {
+        if (!observed.has(round.number)) observed.set(round.number, {});
+        observed.get(round.number)[index] = round.lastEffects;
+      },
+      finished: (round) => settleRound(current, withReferenceEffects(round)),
+    });
     if (moved === current) return current;
-    const state = { ...moved, balance: 0, previous: null };
+    const state = { ...moved, round: withReferenceEffects(moved.round), balance: 0, previous: null };
+    if (state.round.result && (state.round.number !== current.round.number || !current.round.result)) settleRound(state, state.round);
     save.run(JSON.stringify(state));
     return state;
   }
@@ -133,7 +155,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   function payload(state, account, now) {
     const { uid, name } = account;
     const { balance } = balanceFor.get(uid);
-    const round = personalRound(state.round, logEntries(personalBets.all(uid, state.round.number)));
+    const round = personalRound(state.round, acceptedReceipts(personalBets.all(uid, state.round.number)));
     if (round.result) round.result = parse(roundHistory.get(uid, round.number)) ?? spectatorResult(round.result, balance);
     const previous = parse(roundHistory.get(uid, round.number - 1));
     return { now, account: { uid, name }, session: { ...state, id: uid, balance, round, previous } };
@@ -181,8 +203,11 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
         return response({ error: '请选择队伍并输入正整数点数。' });
       }
       const seen = findRequest.get(uid, roundNumber, requestId);
-      if (seen) return response(amount === seen.amount && side === seen.side ? { ...parse(seen), replayed: true }
-        : { error: '该请求已有不同的确认记录。' });
+      if (seen) {
+        if (amount !== seen.amount || side !== seen.side) return response({ error: '该请求已有不同的确认记录。' });
+        const { receipt, error } = parse(seen);
+        return response({ receipt, error, replayed: true });
+      }
       const { balance } = balanceFor.get(uid);
       const total = state.round.teams.red.total + state.round.teams.blue.total;
       let result;
@@ -194,7 +219,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
         result = confirmBet({ ...state, balance }, now, { sessionId: state.id, roundNumber, side, amount, requestId });
       }
       const record = result.receipt ? { receipt: result.receipt } : { error: result.error };
-      storeRequest.run(uid, roundNumber, requestId, side, amount, JSON.stringify(record));
+      storeRequest.run(uid, roundNumber, requestId, side, amount, JSON.stringify({ ...record, requestedAt: now }));
       if (result.receipt) {
         setBalance.run(result.session.balance, uid);
         state = { ...state, round: { ...result.session.round, receipts: [] } };
@@ -213,10 +238,10 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       const stored = current || settlement ? parse(archivedRound.get(number)) : null;
       const round = current ? state.round : stored?.round;
       if (!round) return { archive: null };
-      const receipts = logEntries(personalBets.all(uid, number));
-      const personal = personalRound({ ...round, result: settlement }, receipts);
-      const record = newRoundArchive(state, number, round.startedAt, false);
-      record.bet_log.entries = recoverBetEntries(receipts, round.reference.slice(0, round.referenceIndex), round.startedAt);
+      const requests = personalBets.all(uid, number);
+      const personal = personalRound({ ...round, result: settlement }, acceptedReceipts(requests));
+      const record = newRoundArchive(state, number, round.startedAt);
+      record.bet_log = archiveEntries(round, requests);
       saveBattleSnapshot(record, state, personal);
       if (!record.battle_data) record.battle_data = battleDataReport(battleDataFor(personal), 'bet', now - round.startedAt);
       const result = round.result ? settlement ?? spectatorResult(round.result, balanceFor.get(uid).balance) : null;
