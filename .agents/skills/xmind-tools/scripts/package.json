@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jszip": "3.10.1",
+    "xmind-generator": "1.0.1"
+  }
+}
