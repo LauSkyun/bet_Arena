@@ -1,4 +1,4 @@
-import { drawShots, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
+import { battleResultReason, drawShots, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
 import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
@@ -343,13 +343,9 @@ function render(session, now) {
     const { winner, scores, stakes, rates: settledRates, stake, credit, net, balanceAfter } = round.result;
     element('result-winner').textContent = resultLabel(winner);
     element('result-score').textContent = scores ? `最终占格 · ${scoreLabel(scores)}` : '本轮无最终格数';
-    const damage = round.result.damage;
     const reason = element('result-reason');
-    const fallen = round.result.fallenBases ?? [];
-    reason.hidden = !fallen.length && (!damage || scores?.red !== scores?.blue);
-    if (fallen.length === 1) reason.textContent = `${teamName[fallen[0]]}主基地被摧毁`;
-    else if (fallen.length === 2) reason.textContent = '双方主基地同拍被摧毁，按占格判定';
-    else if (!reason.hidden) reason.textContent = `占格相同，比较有效伤害 · 红 ${damage.red}／蓝 ${damage.blue}`;
+    reason.textContent = battleResultReason(round.result);
+    reason.hidden = !reason.textContent;
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;

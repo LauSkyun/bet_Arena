@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { barracksLabel, glyphFor, troopsByTile } from './board-display.mjs';
+import { barracksLabel, battleResultReason, glyphFor, troopsByTile } from './board-display.mjs';
 import { advanceBattle } from './battle.mjs';
 
 test('glyphs are unique across the two unit pools, and counts stay within one side and type', () => {
@@ -33,4 +33,13 @@ test('the impact trace includes mutually lethal hits and excludes targets outsid
       assert.equal(state.units.length,0);
     }
   }
+});
+
+test('the shared result reason distinguishes territory, base destruction and historical damage tiebreaks', () => {
+  assert.equal(battleResultReason({ winner: 'blue', scores: { red: 22, blue: 34 }, fallenBases: [] }), '战斗到时，按占格判胜');
+  assert.equal(battleResultReason({ winner: 'blue', scores: { red: 31, blue: 25 }, fallenBases: ['red'] }), '红队主基地被摧毁');
+  assert.equal(battleResultReason({ winner: 'draw', scores: { red: 28, blue: 28 }, fallenBases: ['red', 'blue'] }), '双方主基地同拍被摧毁，按占格判定');
+  assert.match(battleResultReason({ winner: 'blue', scores: { red: 28, blue: 28 }, damage: { red: 11, blue: 20 } }), /有效伤害/);
+  assert.equal(battleResultReason({ winner: 'draw', scores: { red: 28, blue: 28 } }), '战斗到时，双方占格相同');
+  assert.equal(battleResultReason({ winner: 'void', scores: null }), '');
 });

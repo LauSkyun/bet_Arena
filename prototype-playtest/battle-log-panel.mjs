@@ -1,5 +1,5 @@
 import { battleFrameDelta } from './battle-log.mjs';
-import { unitName } from './board-display.mjs';
+import { battleResultReason, unitName } from './board-display.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { keyAt, openingOwner } from './roster.mjs';
 
@@ -28,19 +28,30 @@ export function battleLogLines(frame, prior, board, result) {
   }
   for (const shot of frame.shots) entries.push(...battleShotLines(shot));
   entries.push(...spawns);
+  const destroyed = new Map();
+  if (delta) {
+    const removed = new Set(delta.buildings.filter((change) => change.length === 1).map(([id]) => id));
+    for (const building of prior.buildings) {
+      if (removed.has(building.id)) destroyed.set(keyAt(building.at), building);
+    }
+  }
   const ownership = delta?.owners ?? Object.entries(frame.owners).filter(([key, side]) =>
     side !== openingOwner(Number(key.split('-')[0]), board));
   for (const [side, label] of Object.entries(teamName)) {
-    const occupied = ownership.filter(([, owner]) => owner === side).map(([key]) => key);
+    const changed = ownership.filter(([key, owner]) => owner === side && destroyed.get(key)?.side !== side).map(([key]) => key);
+    const occupied = changed.filter((key) => frame.terrain[key] === 'ground');
+    const unscored = changed.filter((key) => frame.terrain[key] !== 'ground');
     if (occupied.length) entries.push(`${label}占格 ${occupied.join('、')}`);
+    if (unscored.length) entries.push(`${label}占据 ${unscored.join('、')}（不计分）`);
   }
-  if (delta) {
-    const removed = new Set(delta.buildings.filter((change) => change.length === 1).map(([id]) => id));
-    for (const { id, side, kind, at } of prior.buildings) {
-      if (removed.has(id)) entries.push(`${teamName[side]}${kind === 'base' ? '基地' : '兵营'}被摧毁（${keyAt(at)}）`);
-    }
+  for (const [key, { side, kind }] of destroyed) {
+    entries.push(`${teamName[side]}${kind === 'base' ? '主基地' : '兵营'}被摧毁（${key}）`);
   }
-  if (result) entries.push(`${outcome[result.winner]} · 红 ${result.scores?.red ?? '—'} 格，蓝 ${result.scores?.blue ?? '—'} 格`);
+  if (result) {
+    const reason = battleResultReason(result);
+    const score = result.scores ? ` · 红 ${result.scores.red} 格，蓝 ${result.scores.blue} 格` : '';
+    entries.push(`${outcome[result.winner]}${reason ? ` · ${reason}` : ''}${score}`);
+  }
   return entries;
 }
 
