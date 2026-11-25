@@ -6,6 +6,10 @@ develop 当前整合 19 种地面兵、对应技能、完整战局包和 GM 导�
 
 [项目指引](AGENTS.md) · [当前玩法](requirements/overview.md#5-v21-地面版与验收入口) · [测试档案](testing/README.md) · [功能知识](knowledge/README.md)
 
+## 同局多人内测
+
+账号版用 Node 24 LTS 在当前仓库根目录启动 server/http.mjs，默认 [本机多人试玩](http://localhost:8780/)。规范化同名可续接余额与历史。[启动说明](requirements/08-shared-arena/implementation.md) · [测试档案](testing/README.md#同局多人内测)
+
 ## 已发布的 V1.1.0
 
 在本机用测试积分支持红队或蓝队，累计投入推动建营和升级。封盘后，兵营在六边形棋盘上自动出兵，按拆基地或终局占格决定胜负，再按封盘回报率结算。

@@ -10,6 +10,7 @@
 | 04 | [自动战斗与占格](features/04-battle.md) |
 | 05 | [积分结算](features/05-settlement.md) |
 | 06 | [竞技场界面](features/06-arena-ui.md) |
+| 08 | [同局多人、试玩账号与历史](features/08-shared-arena.md) |
 
 早期历史体验整合版为 `aaed05fe`。首轮试玩基线 `e30f492c` 的验证仍可从测试档案回查。首次接手时先定位功能档案，再顺着需求、代码和测试证据确认当前范围。
 
