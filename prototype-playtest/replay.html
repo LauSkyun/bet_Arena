@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>战局重播 · GM</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+<main class="gm">
+  <header><h1>战局重播</h1><a href="./gm.html">返回 GM</a></header>
+  <section class="panel replay-upload">
+    <label for="replay-file">选择战局 JSON</label>
+    <input type="file" id="replay-file" accept=".json,application/json">
+    <p class="notice" id="replay-notice" role="status"></p>
+  </section>
+  <div class="gm-layout" id="replay-layout" hidden>
+    <section class="panel gm-board-panel">
+      <div class="board-stage"><div id="replay-board" class="board" role="group" aria-label="战局棋盘"></div><canvas id="shots" aria-hidden="true"></canvas></div>
+      <p class="tile-inspector" id="replay-inspect" hidden></p>
+    </section>
+    <aside id="replay-log" class="panel battle-log-panel" aria-labelledby="replay-log-title">
+      <div class="battle-log-header"><h2 id="replay-log-title">战斗日志</h2><button type="button" class="secondary battle-log-latest" disabled>回到最新</button></div>
+      <div class="battle-log-scroll" tabindex="0" role="region" aria-label="累计战斗日志"><p class="battle-log-empty">开战后显示日志。</p><ol class="battle-log-beats"></ol></div>
+    </aside>
+    <section class="panel gm-control-panel" aria-label="重播控制">
+      <p id="replay-source"></p><p id="replay-state" aria-live="polite"></p>
+      <div class="battle-data-actions">
+        <button type="button" id="replay-play">播放</button>
+        <button type="button" id="replay-step">前进 0.5 秒</button>
+        <button type="button" id="replay-restart">回到起点</button>
+      </div>
+    </section>
+  </div>
+</main>
+<script type="module" src="./gm-replay.mjs"></script>
+</body></html>
