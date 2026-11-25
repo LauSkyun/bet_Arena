@@ -141,7 +141,19 @@ main { width: min(100% - 1.25rem, 60rem); }
 }
 .gm-link, .gm a { color: #a3f3eb; }
 .gm-link { display: inline-block; padding: .4rem .65rem; border: 1px solid #5e7597; border-radius: .45rem; }
-.gm-layout { display: grid; grid-template-columns: minmax(18rem, 1.1fr) minmax(18rem, 1fr); gap: 1rem; align-items: start; }
+main.gm { width: min(100% - 1.25rem, 76rem); }
+.gm-layout { display: grid; grid-template-columns: minmax(12rem, .9fr) minmax(17rem, 1.35fr) minmax(13rem, 1fr); grid-template-areas: "log board controls"; gap: 1rem; align-items: start; }
+.gm-board-panel { grid-area: board; }
+.gm-control-panel { grid-area: controls; }
+.battle-log-panel { grid-area: log; min-width: 0; }
+.battle-log-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem; }
+.battle-log-header h2 { margin: 0; font-size: 1.1rem; }
+.battle-log-scroll { max-block-size: min(65vh, 36rem); overflow: auto; overscroll-behavior: contain; margin-top: .4rem; border-top: 1px solid #52637c; }
+.battle-log-beats { margin: 0; padding: 0; list-style: none; font-size: .85rem; overflow-wrap: anywhere; }
+.battle-log-beats > li { padding: .35rem .35rem .35rem 0; border-bottom: 1px solid #35415a; }
+.battle-log-beats strong { color: #a3f3eb; font-variant-numeric: tabular-nums; }
+.battle-log-beats ul { padding-left: 1.1rem; }
+.battle-log-empty { color: #b9c5d9; }
 .gm fieldset { min-width: 0; border: 1px solid #52637c; }
 .gm label { display: grid; margin: .4rem 0; }
 .gm input, .gm select { min-height: 40px; font: inherit; }
@@ -157,4 +169,7 @@ main { width: min(100% - 1.25rem, 60rem); }
 .gm-balances dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .gm .wallet-fields { display: grid; grid-template-columns: minmax(4rem, 1fr) minmax(0, 2fr); gap: .5rem; border: 0; padding: 0; margin: 0; }
 .gm .wallet-fields input, .gm .wallet-fields select { width: 100%; padding-inline: .3rem; }
-@media(max-width:680px) { .gm-layout { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 820px) {
+  .gm-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "board" "log" "controls"; }
+  .battle-log-scroll { max-block-size: 15rem; }
+}
