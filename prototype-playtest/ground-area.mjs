@@ -1,6 +1,7 @@
 import { distance, keyAt, neighbours } from './roster.mjs';
 
-export const groundAreaLabels = Object.freeze({ fan: '扇扫', line: '直线扫射', splash: '溅射' });
+export const groundAreaLabels = Object.freeze({ fan: '扇扫', line: '直线扫射', splash: '溅射', 'self-destruct': '自爆' });
+export const isSplashEffect = (effect) => effect === 'splash' || effect === 'self-destruct';
 export const isGroundTarget = (target) => (target.layer ?? 'ground') === 'ground';
 
 // In the staggered grid, adjacent steps have equal length in (x, sqrt(3) * row).
@@ -16,7 +17,7 @@ function directionToward(attacker, target, adjacent) {
 
 export function secondaryGroundTargets(unit, primary, units, board) {
   const enemies = units.filter((target) => target.id !== primary.id && target.side !== unit.side && isGroundTarget(target));
-  if (unit.effect === 'splash') return enemies.filter((target) => distance(target.at, primary.at, board) <= 1);
+  if (isSplashEffect(unit.effect)) return enemies.filter((target) => distance(target.at, primary.at, board) <= 1);
 
   const adjacent = neighbours(unit.at, unit.side, board);
   const forward = directionToward(unit.at, primary.at, adjacent);
