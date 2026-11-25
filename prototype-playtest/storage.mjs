@@ -2,7 +2,7 @@ import { groundProfile } from './profiles.mjs';
 import { previousCombatRules } from './battle.mjs';
 import { legacyBoard } from './roster.mjs';
 import { defaultDurations, legacyDurations } from './timing.mjs';
-import { betting, stakesFor } from './betting.mjs';
+import { betting, isLegacyReference, referenceForRound, stakesFor } from './betting.mjs';
 import { advance, newSession, placeBet, sessionVersion, timeline } from './round.mjs';
 import { adjustTestBalance } from './test-wallet.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
@@ -24,7 +24,11 @@ function migrateResult(result, rates) {
 
 export function upgradeSession(saved) {
   if (!saved || saved.version === sessionVersion) return saved;
-  if (Number.isInteger(saved.version) && saved.version >= 13 && saved.version <= 17) return { ...saved, version: sessionVersion };
+  if (!saved.round.reference && isLegacyReference(saved.reference)) {
+    const { reference, ...fields } = saved;
+    saved = { ...fields, round: { ...saved.round, reference } };
+  }
+  if (Number.isInteger(saved.version) && saved.version >= 13 && saved.version <= 18) return { ...saved, version: sessionVersion };
   // Sessions through v12 used a fixed 10-point threshold for every wager in the open round.
   saved = { ...saved, round: { ...saved.round, threshold: 10 }, nextThreshold: betting.threshold };
   // Older tabs reject this version before they can settle a round with newer rules.
@@ -96,7 +100,7 @@ async function importLegacy(session, rounds, frames) {
   }
   const { round } = session;
   const record = newRoundArchive(session, round.number, round.startedAt, false);
-  record.bet_log.entries = recoverBetEntries(round.receipts, session.reference.slice(0, round.referenceIndex), round.startedAt);
+  record.bet_log.entries = recoverBetEntries(round.receipts, referenceForRound(round, session.reference).slice(0, round.referenceIndex), round.startedAt);
   rounds.put(record);
 }
 
@@ -118,7 +122,7 @@ async function syncRound(rounds, frames, session, round, now, entries = []) {
 function fenceLegacy() {
   const stored = JSON.parse(localStorage.getItem(sessionKey));
   if (stored?.storage === 'indexeddb') return stored.legacy ?? null;
-  // Older pages reject v18 under this same lock. Retain the migration source until commit.
+  // Pages with older storage code reject the marker under this same lock. Retain the migration source until commit.
   localStorage.setItem(sessionKey, JSON.stringify({ version: sessionVersion, storage: 'indexeddb', ...(stored ? { legacy: stored } : {}) }));
   return stored;
 }
