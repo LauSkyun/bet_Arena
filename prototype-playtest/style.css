@@ -139,6 +139,9 @@ main { width: min(100% - 1.25rem, 60rem); }
   .hex-board .building-name { font-size: .75rem; }
   .hex-board .building-level { padding: 0 2px; }
 }
+.gm-nav { display: flex; flex-wrap: wrap; gap: .45rem .8rem; }
+.replay-upload { margin-bottom: 1rem; }
+.replay-upload input { max-width: 100%; }
 .gm-link, .gm a { color: #a3f3eb; }
 .gm-link { display: inline-block; padding: .4rem .65rem; border: 1px solid #5e7597; border-radius: .45rem; }
 main.gm { width: min(100% - 1.25rem, 76rem); }

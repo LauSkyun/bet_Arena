@@ -7,6 +7,16 @@ const teamName = { red: '红队', blue: '蓝队' };
 const outcome = { red: '红队获胜', blue: '蓝队获胜', draw: '平局', void: '战斗作废' };
 const nearBottom = (view) => view.scrollHeight - view.scrollTop - view.clientHeight <= 24;
 
+export function battleShotLines(shot) {
+  const attacker = `${teamName[shot.side]}${unitName(shot.name)}${shot.attackerId ? ` #${shot.attackerId}` : ''}`;
+  const victim = `${shot.targetName ?? '目标'}${shot.targetId ? ` #${shot.targetId}` : ''}（${keyAt(shot.to)}）`;
+  const name = groundAreaLabels[shot.effect] ?? '攻击';
+  const detail = shot.effect === 'heal' ? `治疗 ${shot.power}` : `${name} · 实际伤害 ${shot.applied ?? shot.power}`;
+  const hp = shot.before === undefined || shot.after === undefined ? '' : `，生命 ${shot.before} → ${shot.after}`;
+  const hit = `${attacker} → ${victim}，${detail}${hp}`;
+  return shot.effect === 'self-destruct' && shot.primary ? [hit, `${attacker} 自耗并离场（${keyAt(shot.from)}）`] : [hit];
+}
+
 export function battleLogLines(frame, prior, board, result) {
   const delta = prior ? battleFrameDelta(prior, frame) : null;
   const entries = [];
@@ -16,15 +26,7 @@ export function battleLogLines(frame, prior, board, result) {
     if (event.kind === 'spawn') spawns.push(`${unit} 在 ${keyAt(event.at)} 出兵（生命 ${event.hp}）`);
     if (event.kind === 'move') entries.push(`${unit} 移动 ${keyAt(event.from)} → ${keyAt(event.to)}`);
   }
-  for (const shot of frame.shots) {
-    const attacker = `${teamName[shot.side]}${unitName(shot.name)}${shot.attackerId ? ` #${shot.attackerId}` : ''}`;
-    const victim = `${shot.targetName ?? '目标'}${shot.targetId ? ` #${shot.targetId}` : ''}（${keyAt(shot.to)}）`;
-    const name = groundAreaLabels[shot.effect] ?? '攻击';
-    const detail = shot.effect === 'heal' ? `治疗 ${shot.power}` : `${name} · 实际伤害 ${shot.applied ?? shot.power}`;
-    const hp = shot.before === undefined || shot.after === undefined ? '' : `，生命 ${shot.before} → ${shot.after}`;
-    entries.push(`${attacker} → ${victim}，${detail}${hp}`);
-    if (shot.effect === 'self-destruct' && shot.primary) entries.push(`${attacker} 自耗并离场（${keyAt(shot.from)}）`);
-  }
+  for (const shot of frame.shots) entries.push(...battleShotLines(shot));
   entries.push(...spawns);
   const ownership = delta?.owners ?? Object.entries(frame.owners).filter(([key, side]) =>
     side !== openingOwner(Number(key.split('-')[0]), board));
