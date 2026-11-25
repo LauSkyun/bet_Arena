@@ -5,7 +5,6 @@ import { pathToFileURL } from 'node:url';
 import { durationsFromSeconds } from '../prototype-playtest/timing.mjs';
 import { openArena } from './shared-arena.mjs';
 
-const cookieName = 'arena44_session';
 const contentTypes = { html: 'text/html', mjs: 'text/javascript', css: 'text/css', json: 'application/json' };
 const root = new URL('../prototype-playtest/', import.meta.url);
 const assets = new Map([
@@ -13,12 +12,7 @@ const assets = new Map([
 ]);
 
 function tokenFor(request) {
-  const prefix = `${cookieName}=`;
-  return request.headers.cookie?.split(/;\s*/).find((entry) => entry.startsWith(prefix))?.slice(prefix.length);
-}
-
-function cookie(token, secure) {
-  return `${cookieName}=${token ?? ''}; Path=/; Max-Age=${token ? 2_592_000 : 0}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
+  return /^Bearer ([\da-f-]{36})$/i.exec(request.headers.authorization ?? '')?.[1];
 }
 
 function json(response, status, value) {
@@ -58,7 +52,7 @@ function staticFile(request, response, pathname) {
   return true;
 }
 
-export function createArenaServer({ arena, secureCookies = false }) {
+export function createArenaServer({ arena }) {
   return createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -76,13 +70,10 @@ export function createArenaServer({ arena, secureCookies = false }) {
         const data = await bodyFor(request);
         const login = arena.login(data?.username);
         if (!login) return json(response, 400, { error: '请输入 1–24 个字符的用户名，可用文字、数字、空格、下划线和连字符。' });
-        arena.logout(token);
-        response.setHeader('Set-Cookie', cookie(login.token, secureCookies));
-        return json(response, 200, { account: login.account });
+        return json(response, 200, login);
       }
       if (method === 'POST' && pathname === '/api/logout') {
         arena.logout(token);
-        response.setHeader('Set-Cookie', cookie(null, secureCookies));
         return json(response, 200, {});
       }
       let data;
@@ -122,7 +113,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (!durations || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('ARENA_PORT and round durations must be valid.');
   mkdirSync(dirname(file), { recursive: true });
   const arena = openArena(file, { durations });
-  const server = createArenaServer({ arena, secureCookies: process.env.ARENA_SECURE_COOKIE === '1' });
+  const server = createArenaServer({ arena });
   server.listen(port, host, () => console.log(`Shared arena listening on ${host}:${port}`));
   const timer = setInterval(() => {
     try { arena.tick(); }
