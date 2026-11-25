@@ -25,6 +25,10 @@
 
 第 52 卡以快照 56e6e61 运行，独立核对了 72 局的 4,822 帧与入账。第 53 卡更换快照至 8550317 后复验普通战场和导入重播的同拍显示。整局体验结论由第 48 卡记录。
 
+## 同局多人内测
+
+[#44 需求与验收拆分](../requirements/08-shared-arena/requirement.md#4-交付顺序与验收) · [开发实测](runs/2026-11-25-shared-arena.md)
+
 ## 早期里程碑与回归
 
 - [里程碑 1 分析](analysis/milestone-1.md) · [第一次反馈](analysis/milestone-1-iteration-2026-11-23.md) · [第二次反馈](analysis/milestone-1-second-feedback-2026-11-23.md)
