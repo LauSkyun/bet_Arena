@@ -1,4 +1,4 @@
-import { battleResultReason, drawShots, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
+import { appendBuildingMarker, battleResultReason, drawShots, setBuildingHealth, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
 import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
@@ -190,10 +190,7 @@ function renderBoard(round, teams, frame, effects) {
     const ownerLabel = teamName[land] ?? '中立';
     const hp = marker?.hp ?? marker?.maxHp;
     const healthLabel = marker?.maxHp ? `，建筑生命 ${hp}/${marker.maxHp}` : '';
-    const healthWidth = marker?.maxHp ? `${hp / marker.maxHp * 100}%` : '';
-    if (cell.style.getPropertyValue('--building-hp') !== healthWidth) {
-      cell.style.setProperty('--building-hp', healthWidth);
-    }
+    setBuildingHealth(cell, hp, marker?.maxHp);
     const label = `${row}行${col}列，${marker?.label ?? '普通格'}${healthLabel}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
     const signature = troopLabel || `${marker?.symbol ?? ''}/${marker?.level ?? ''}`;
@@ -212,19 +209,7 @@ function renderBoard(round, teams, frame, effects) {
         if (groups.length > 4) chips.append('…');
         cell.append(chips);
       } else if (marker?.maxHp) {
-        const title = document.createElement('span');
-        title.className = 'building-name';
-        title.textContent = marker.symbol;
-        const bar = document.createElement('span');
-        bar.className = 'building-health';
-        bar.setAttribute('aria-hidden', 'true');
-        cell.append(bar, title);
-        if (marker.level) {
-          const grade = document.createElement('span');
-          grade.className = 'building-level';
-          grade.textContent = `${marker.level}级`;
-          cell.append(grade);
-        }
+        appendBuildingMarker(cell, marker);
       } else cell.textContent = marker?.symbol ?? '';
     }
     if (cell.title !== label) {

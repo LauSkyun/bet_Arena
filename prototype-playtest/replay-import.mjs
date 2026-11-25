@@ -1,6 +1,7 @@
 import { battleRules, currentFireRevision, fireRevisionFor, groundSelfDestructRules, previousCombatRules, simulateBattle } from './battle.mjs';
+import { barracksDisplayData } from './battle-data.mjs';
 import { recordedBattleFrames } from './battle-log.mjs';
-import { boardColumns, boardRows, currentBoard, legacyBoard, onBoard, priorBoard, squareExpansionBoard } from './roster.mjs';
+import { boardColumns, boardRows, currentBoard, keyAt, legacyBoard, maxLevel, onBoard, priorBoard, squareExpansionBoard } from './roster.mjs';
 import { secondsLimit } from './timing.mjs';
 
 const snapshotFormat = 'bet-arena/battle-data';
@@ -39,7 +40,35 @@ function readSnapshot(report) {
   return round;
 }
 
-function readRecordedLog(log) {
+function legacyBarracksNames(log) {
+  const names = new Map();
+  for (const frame of [log.initialFrame, ...log.frames]) {
+    for (const event of frame.events) {
+      if (event.kind !== 'spawn' || !positive(event.source) || !identity(event.name)) continue;
+      const key = `${event.side}:${event.source}`;
+      names.set(key, !names.has(key) || names.get(key) === event.name ? event.name : null);
+    }
+  }
+  return log.initialFrame.buildings.filter(({ kind }) => kind === 'barracks').map(({ at, side, id }) =>
+    ({ at, side, name: names.get(`${side}:${id}`) }));
+}
+
+function replayBarracks(board, log, loadout) {
+  // The frozen roster is authoritative when the bundle contains both sources.
+  const recorded = Array.isArray(log?.barracks) ? log.barracks : log ? legacyBarracksNames(log) : [];
+  const candidates = [...recorded, ...barracksDisplayData(loadout)];
+  const byTile = new Map();
+  for (const entry of candidates) {
+    if (!object(entry) || !sides.has(entry.side) || !Array.isArray(entry.at) || entry.at.length !== 2 ||
+        !entry.at.every(positive) || !onBoard(entry.at, board)) continue;
+    const name = identity(entry.name) ? entry.name : undefined;
+    const level = positive(entry.level) && entry.level <= maxLevel ? entry.level : undefined;
+    if (name !== undefined || level !== undefined) byTile.set(`${entry.side}:${keyAt(entry.at)}`, { name, level });
+  }
+  return byTile;
+}
+
+function readRecordedLog(log, loadout) {
   requireData(log?.format === logFormat);
   requireData(log.version === 1, '战斗日志版本不受支持。');
   const { board, initialFrame, frames, complete, result, recordedThroughMs } = log;
@@ -93,7 +122,7 @@ function readRecordedLog(log) {
       (result.endedAtMs === undefined || result.endedAtMs === recordedThroughMs));
   }
   return { frames: recordedBattleFrames(log), result: complete ? result : null, source: 'log', complete,
-    board, roundNumber: log.roundNumber, combatRules: log.combatRules, recordedThroughMs };
+    board, roundNumber: log.roundNumber, combatRules: log.combatRules, recordedThroughMs, barracks: replayBarracks(board, log, loadout) };
 }
 
 export function replayFromReport(report) {
@@ -112,7 +141,7 @@ export function replayFromReport(report) {
         requireData(round.number === log.roundNumber && round.board === log.board && round.combatRules === log.combatRules &&
           fireRevisionFor(round) === log.fireRevision, '封盘快照与战斗日志的轮次或规则不一致。');
       }
-      return readRecordedLog(log);
+      return readRecordedLog(log, snapshot?.round.loadout);
     }
     if (snapshot != null) requireData(snapshot.round?.number === report.roundNumber, '封盘快照与战局包的轮次不一致。');
   } else requireData(report.format === snapshotFormat, '文件格式不受支持。请选择封盘快照、战斗日志或完整战局包。');
@@ -120,5 +149,5 @@ export function replayFromReport(report) {
   const replay = simulateBattle(round.loadout, round.durations.battleMs, round.board, round.combatRules, fireRevisionFor(round), false, true);
   requireData(replay.frames.length > 0, '封盘阵容无法重演，请检查文件。');
   return { ...replay, source: 'snapshot', complete: true, board: round.board, roundNumber: round.number,
-    combatRules: round.combatRules, recordedThroughMs: replay.frames.at(-1).elapsed };
+    combatRules: round.combatRules, recordedThroughMs: replay.frames.at(-1).elapsed, barracks: replayBarracks(round.board, null, round.loadout) };
 }

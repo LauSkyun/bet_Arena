@@ -35,6 +35,8 @@ test('round archive freezes once, records through available beats, and reconstru
   report = JSON.parse(JSON.stringify(betDataReport(record, deltas)));
   assert.deepEqual(recordedBattleFrames(report.battle_log), JSON.parse(JSON.stringify(replay.frames)));
   assert.equal(report.battle_log.result.winner, 'red');
+  const firstBarracks = report.battle_data.round.loadout.red.barracks[0];
+  assert.deepEqual(report.battle_log.barracks[0], { at: firstBarracks.at, side: 'red', name: firstBarracks.unit.name, level: firstBarracks.level });
   assert.equal(report.battle_log.settlement.balanceAfter, 9608);
   assert.ok(report.battle_log.frames.some((frame) => frame.events.some((event) => event.kind === 'spawn')));
   assert.ok(report.battle_log.frames.some((frame) => frame.events.some((event) => event.kind === 'move')));

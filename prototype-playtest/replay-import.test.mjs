@@ -31,13 +31,29 @@ test('a bundle plays stored beats and a standalone battle log yields the same fr
   const full = fixture('round-archive/complete');
   const a = replayFromReport(full);
   const b = replayFromReport(full.battle_log);
-  assert.deepEqual(a, b);
+  assert.deepEqual(a.frames, b.frames);
+  assert.deepEqual(a.result, b.result);
+  const firstCamp = full.battle_data.round.loadout.red.barracks[0];
+  const tile = `red:${firstCamp.at.join('-')}`;
+  assert.deepEqual(a.barracks.get(tile), { name: firstCamp.unit.name, level: firstCamp.level });
+  assert.deepEqual(b.barracks.get(tile), { name: firstCamp.unit.name, level: undefined });
   assert.equal(a.source, 'log');
   assert.equal(a.recordedThroughMs, 38_000);
   assert.equal(a.result.winner, 'blue');
   // A valid recorded log still plays its original content if the snapshot cannot be simulated.
   full.battle_data.round.loadout = {};
-  assert.deepEqual(replayFromReport(full), a);
+  assert.deepEqual(replayFromReport(full), b);
+});
+
+test('standalone log pins recorded barracks names and levels before their first spawn', () => {
+  const full = fixture('round-archive/complete');
+  const camp = full.battle_data.round.loadout.red.barracks[0];
+  const at = camp.at;
+  const log = { ...full.battle_log, complete: false, result: null, frames: [], recordedThroughMs: 0 };
+  const tile = `red:${at.join('-')}`;
+  assert.equal(replayFromReport(log).barracks.has(tile), false);
+  log.barracks = [null, { at: 'bad', side: 'red', name: '坏值', level: 2 }, { at, side: 'red', name: camp.unit.name, level: camp.level }];
+  assert.deepEqual(replayFromReport(log).barracks.get(tile), { name: camp.unit.name, level: camp.level });
 });
 
 test('partial logs end at their last recorded beat without a final result', () => {
