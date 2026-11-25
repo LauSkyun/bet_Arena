@@ -1,5 +1,6 @@
 import { groundAreaRules, groundHealingRules, groundSelfDestructRules } from './battle.mjs';
 import { setupTestWallet } from './gm-wallet.mjs';
+import { setupBattleLogPanel } from './battle-log-panel.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { groundUnits } from './ground-units.mjs';
 import { barracksLabel, glyphFor } from './board-display.mjs';
@@ -7,6 +8,7 @@ import { boardColumns, boardRows, expansionExits, keyAt, openingOwner } from './
 import { teams, addBuilding, addSoldier, legalSites, mirrorScenario, newScenario, runScenario, setBuildingLevel, setHealth } from './gm-scenario.mjs';
 
 const el = id => document.getElementById(id);
+const renderBattleLog = setupBattleLogPanel(el('gm-battle-log'));
 const key = 'bet-arena.gm.ground-self-destruct.v1';
 const previousKeys = ['bet-arena.gm.ground-area.v1', 'bet-arena.gm.ground-healing.v1', 'bet-arena.gm.ground-production.v1'];
 const teamName = { red: '红', blue: '蓝' };
@@ -17,7 +19,7 @@ try {
   const stored = JSON.parse([key, ...previousKeys].map((name) => localStorage.getItem(name)).find(Boolean) ?? 'null');
   if (stored) {
     round = stored.round; selected = stored.selected; index = stored.index;
-    if (index >= 0) replay = runScenario(round);
+    if (index >= 0) replay = runScenario(round, true);
   }
 } catch { round = newScenario(); index = -1; selected = [1,4]; el('notice').textContent = '测试存档无法恢复，已打开空白测试局。'; }
 for (const u of groundUnits) el('unit').add(new Option(`${u.origin} · ${u.name}`, u.unitId));
@@ -53,7 +55,7 @@ function troopText(list) {
 }
 function caption(o) { return `${teamName[o.side]}${o.name}${o.level ? ` ${o.level}级` : ''} ${o.hp}${o.max ? '/'+o.max : ''}`; }
 function stop() { clearInterval(timer); timer = undefined; }
-function run() { stop(); replay = runScenario(round); index = 0; }
+function run() { stop(); replay = runScenario(round, true); index = 0; }
 function step() { if (index < replay.frames.length-1) index++; if (index === replay.frames.length-1) stop(); }
 function render() {
   const editing = index < 0, frame = editing ? null : replay.frames[index];
@@ -96,6 +98,7 @@ function render() {
     item.textContent = `${teamName[shot.side]}${shot.name} #${shot.attackerId} → ${keyAt(shot.to)} 的${shot.targetName} #${shot.targetId}，${effect}，目标本拍生命 ${shot.before} → ${after}${consumed}`;
     el('hits').append(item);
   }
+  renderBattleLog(replay, index, round.board);
   save();
 }
 function action(id, fn) {

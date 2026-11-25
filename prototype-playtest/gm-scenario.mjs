@@ -58,8 +58,8 @@ export function mirrorScenario(original) {
   }
   return result;
 }
-export function runScenario(round) {
-  const replay = simulateBattle(round.loadout, round.durations.battleMs, round.board, round.combatRules, round.fireRevision, true);
+export function runScenario(round, captureEvents = false) {
+  const replay = simulateBattle(round.loadout, round.durations.battleMs, round.board, round.combatRules, round.fireRevision, true, captureEvents);
   if (!replay.frames.length) throw Error('测试阵容无法开战，请检查兵营、出兵口和初始生命');
   return replay;
 }
