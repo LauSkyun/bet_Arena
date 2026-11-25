@@ -27,7 +27,7 @@
 
 ## 同局多人内测
 
-[#44 需求与验收拆分](../requirements/08-shared-arena/requirement.md#4-交付顺序与验收) · [开发实测](runs/2026-11-25-shared-arena.md) · [IT22 XMind](cases/shared-arena-2026-11-25.xmind) · [独立验收](runs/2026-11-25-shared-arena-independent.md)
+[#44 需求与验收拆分](../requirements/08-shared-arena/requirement.md#4-交付顺序与验收) · [开发实测](runs/2026-11-25-shared-arena.md) · [IT22 XMind](cases/shared-arena-2026-11-25.xmind) · [独立验收](runs/2026-11-25-shared-arena-independent.md) · [双标签复验](runs/2026-11-25-shared-arena-tab-session-independent.md)
 
 ## 早期里程碑与回归
 
