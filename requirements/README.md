@@ -1,6 +1,8 @@
-# requirements 目录规范（v0，临时版）
+# 竞猜竞技场需求索引
 
-正式项目规范待定，以下先作为默认约定，等 @kaikai 拍板后替换。
+[玩法总纲与模块索引](overview.md) · [研发流程](development-workflow.md) · [测试档案](../testing/README.md) · [功能知识](../knowledge/README.md)
+
+以当前分支对应的模块需求为准。规则版本和试玩初值写在主管模块。历史候选、实现过程与测试执行各自留在实现记录和测试档案。
 
 ## 目录结构
 
