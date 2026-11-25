@@ -5,7 +5,8 @@ import { barracksLabel, glyphFor } from './board-display.mjs';
 import { groundProfile } from './profiles.mjs';
 import { advance, newSession, placeBet, timeline } from './round.mjs';
 import { battleDataFor } from './battle-data.mjs';
-import { simulateBattle } from './battle.mjs';
+import { groundHealingRules, groundProductionRules, simulateBattle } from './battle.mjs';
+import { upgradeSession } from './storage.mjs';
 import { themes, unitStats } from './roster.mjs';
 
 function start(seed) {
@@ -65,7 +66,34 @@ test('a sealed, exported V2.1 battle replays identically after serialization and
   assert.deepEqual(replay, simulate(data));
   assert.notEqual(replay.result.winner, 'void');
   assert.equal(data.profile, groundProfile);
-  assert.equal(data.combatRules, 9);
+  assert.equal(data.combatRules, groundHealingRules);
   assert.equal(replay.result.winner, data.result.winner);
   assert.deepEqual(replay.result.scores, data.result.scores);
+});
+
+test('normal ground wagers produce a medic that heals, and v13 keeps its locked rules and threshold', () => {
+  const current = start(24);
+  const stake = (session, side) => placeBet(session, 1, {
+    sessionId: session.id, roundNumber: 1, side, amount: 500, requestId: side,
+  }).session;
+  const wagered = stake(stake(current, 'red'), 'blue');
+  const lock = timeline(wagered.round).lock;
+  const locked = advance(wagered, lock);
+  const round = battleDataFor(locked.round, []);
+  const replay = simulateBattle(round.loadout, round.durations.battleMs, round.board, round.combatRules, round.fireRevision);
+  const first = replay.frames.find(({ shots }) => shots.some(({ effect }) => effect === 'heal'));
+  assert.equal(first.elapsed, 10_000);
+  assert.deepEqual(first.shots.filter(({ effect }) => effect === 'heal').map(({ targetName, power, before, after }) =>
+    [targetName, power, before, after]), [['小狗', 12, 39, 39]]);
+  assert.equal(advance(locked, timeline(locked.round).finish).round.result.winner, replay.result.winner);
+
+  const old = { ...locked, version: 13, nextThreshold: 125, round: { ...locked.round, combatRules: groundProductionRules } };
+  const migrated = upgradeSession(old);
+  assert.deepEqual(migrated, { ...old, version: current.version });
+  const oldReplay = simulateBattle(round.loadout, round.durations.battleMs, round.board, migrated.round.combatRules, round.fireRevision);
+  assert.ok(oldReplay.frames.every(({ shots }) => shots.every(({ effect }) => effect !== 'heal')));
+  const next = advance(migrated, timeline(migrated.round).next);
+  assert.equal(next.previous.battleData.combatRules, groundProductionRules);
+  assert.equal(next.round.combatRules, groundHealingRules);
+  assert.equal(next.round.threshold, 125);
 });

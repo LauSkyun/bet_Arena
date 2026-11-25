@@ -3,10 +3,10 @@ import { battleDataFor } from './battle-data.mjs';
 import { currentBoard } from './roster.mjs';
 import { defaultDurations, durationsFromSeconds, secondsLimit } from './timing.mjs';
 import { settleSession } from './settlement.mjs';
-import { fireRevisionFor, groundProductionRules, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
+import { fireRevisionFor, groundHealingRules, baseVictoryRules, currentCombatRules, currentFireRevision, replayFor } from './battle.mjs';
 import { betting, initialBetting, defaultReference, advanceBetting, confirmBet } from './betting.mjs';
 
-export const sessionVersion = 13;
+export const sessionVersion = 14;
 
 const lockMs = 2_000;
 const resultMs = 5_000;
@@ -30,7 +30,7 @@ function newRound(number, startedAt, seed, durations, board = currentBoard, prof
     board,
     profile,
     threshold,
-    combatRules: profile === groundProfile ? groundProductionRules : currentCombatRules,
+    combatRules: profile === groundProfile ? groundHealingRules : currentCombatRules,
     fireRevision: currentFireRevision,
     startedAt,
     durations,

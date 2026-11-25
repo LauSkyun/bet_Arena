@@ -4,9 +4,9 @@
 <div class="gm-layout"><section class="panel"><p id="state"></p><div id="map" class="board hex-board" aria-label="测试棋盘"></div><p id="inspect" aria-live="polite"></p><ul id="hits"></ul></section>
 <section class="panel"><fieldset id="edit"><legend>开战前布阵</legend>
 <label>阵营<select id="side"><option value="red">红队</option><option value="blue">蓝队</option></select></label><label>兵种<select id="unit"></select></label>
-<p>点选棋盘位置。亮框是本方可建营格。放兵时可指定等级和剩余生命；开战后点格子看本拍命中。</p><button id="build">在所选格建营</button><button id="place">放置测试兵</button>
+<p>点选棋盘位置。亮框是本方可建营格。放兵时可指定等级和剩余生命；开战后点格子查看本拍攻击和治疗。</p><button id="build">在所选格建营</button><button id="place">放置测试兵</button>
 <label>所选格对象<select id="entity"></select></label><label>等级<select id="level"><option>1</option><option>2</option><option>3</option></select></label>
 <button id="up">兵营升一级</button><button id="set-level">设置兵营等级</button>
 <label>剩余生命<input id="hp" type="number" min="1" step="1" placeholder="放兵时留空为满血"></label><button id="set-hp">设置所选对象生命</button><button id="remove">移除所选兵或营</button></fieldset>
-<div class="battle-data-actions"><button id="start">封盘开战</button><button id="play">播放</button><button id="step">前进 0.5 秒</button><button id="restart">原样重开</button><button id="back">返回布阵</button><button id="mirror">红蓝镜像布阵</button><button id="export">导出测试局</button></div>
+<div class="battle-data-actions"><button id="start">封盘开战</button><button id="play">播放</button><button id="step">前进 0.5 秒</button><button id="restart">原样重开</button><button id="back">返回布阵</button><button id="mirror">红蓝镜像布阵</button><button id="export">导出测试局</button><button id="new">新建测试局</button></div>
 <p id="notice" role="status"></p></section></div></main><script type="module" src="./gm.mjs"></script></body></html>

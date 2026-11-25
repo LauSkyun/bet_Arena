@@ -44,8 +44,8 @@ export function drawShots(canvas, shots, cells) {
     return centers.get(key);
   }
   const drawn = new Set();
-  for (const { from, to, side } of shots) {
-    const key = `${side}/${from}/${to}`;
+  for (const { from, to, side, effect } of shots) {
+    const key = `${side}/${from}/${to}/${effect ?? 'attack'}`;
     if (drawn.has(key)) continue;
     drawn.add(key);
     const [x, y] = center(from), [tx, ty] = center(to);
@@ -53,7 +53,9 @@ export function drawShots(canvas, shots, cells) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
-    ctx.strokeStyle = ctx.fillStyle = side === 'red' ? '#ff99ac' : '#94d7ff';
+    const healing = effect === 'heal';
+    ctx.strokeStyle = ctx.fillStyle = healing ? '#85f0ac' : side === 'red' ? '#ff99ac' : '#94d7ff';
+    if (healing) ctx.setLineDash([3, 3]);
     ctx.lineWidth = 2;
     ctx.beginPath();
     const length = Math.hypot(tx - x, ty - y);

@@ -1,0 +1,176 @@
+{
+  "format": "bet-arena/gm-battle",
+  "version": 1,
+  "round": {
+    "seed": 37,
+    "number": 1,
+    "sealed": true,
+    "board": "hex-14",
+    "profile": "sc-ground-v2.1-production",
+    "combatRules": 10,
+    "fireRevision": 2,
+    "durations": {
+      "battleMs": 40000
+    },
+    "loadout": {
+      "red": {
+        "side": "red",
+        "theme": "人族",
+        "base": [
+          1,
+          4
+        ],
+        "hp": 240,
+        "maxHp": 240,
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [
+          {
+            "side": "red",
+            "at": [
+              2,
+              4
+            ],
+            "exit": [
+              2,
+              3
+            ],
+            "level": 1,
+            "unit": {
+              "unitId": 22,
+              "origin": "虫族",
+              "name": "小狗",
+              "label": "小狗",
+              "glyph": "狗",
+              "quality": "绿",
+              "effect": "single",
+              "range": 1,
+              "attackMs": 500,
+              "moveMs": 500,
+              "spawnMs": 3000,
+              "spawnCount": 2,
+              "limit": 10,
+              "sense": 4,
+              "hp": 75,
+              "damage": 6
+            },
+            "hp": 10,
+            "maxHp": 120
+          }
+        ],
+        "startingUnits": [
+          {
+            "unitId": 10,
+            "origin": "人族",
+            "name": "医疗兵",
+            "label": "医疗",
+            "glyph": "医",
+            "quality": "紫",
+            "effect": "heal",
+            "healing": 12,
+            "range": 3,
+            "attackMs": 1000,
+            "moveMs": 1000,
+            "spawnMs": 5000,
+            "spawnCount": 1,
+            "limit": 3,
+            "sense": 4,
+            "hp": 75,
+            "damage": 0,
+            "level": 1,
+            "side": "red",
+            "at": [
+              7,
+              4
+            ],
+            "currentHp": 75
+          },
+          {
+            "unitId": 2,
+            "origin": "人族",
+            "name": "陆战队员",
+            "label": "陆战",
+            "glyph": "陆",
+            "quality": "绿",
+            "effect": "single",
+            "range": 3,
+            "attackMs": 500,
+            "moveMs": 1000,
+            "spawnMs": 3000,
+            "spawnCount": 1,
+            "limit": 8,
+            "sense": 4,
+            "hp": 100,
+            "damage": 9,
+            "level": 1,
+            "side": "red",
+            "at": [
+              7,
+              2
+            ],
+            "currentHp": 45
+          },
+          {
+            "unitId": 25,
+            "origin": "虫族",
+            "name": "猛犸",
+            "label": "猛犸",
+            "glyph": "犸",
+            "quality": "金",
+            "effect": "single",
+            "range": 1,
+            "attackMs": 500,
+            "moveMs": 500,
+            "spawnMs": 14000,
+            "spawnCount": 1,
+            "limit": 2,
+            "sense": 4,
+            "hp": 280,
+            "damage": 28,
+            "level": 1,
+            "side": "red",
+            "at": [
+              7,
+              6
+            ],
+            "currentHp": 84
+          }
+        ]
+      },
+      "blue": {
+        "side": "blue",
+        "theme": "人族",
+        "base": [
+          14,
+          4
+        ],
+        "hp": 240,
+        "maxHp": 240,
+        "baseAttack": {
+          "damage": 12,
+          "range": 3,
+          "attackMs": 1000
+        },
+        "barracks": [],
+        "startingUnits": []
+      }
+    }
+  },
+  "elapsedMs": 0,
+  "result": {
+    "winner": "red",
+    "scores": {
+      "red": 35,
+      "blue": 21
+    },
+    "durationMs": 40000,
+    "fallenBases": [
+      "blue"
+    ],
+    "endedAtMs": 6000,
+    "decidedBy": "base"
+  }
+}
