@@ -1,6 +1,6 @@
 import { battleFrameDelta } from './battle-log.mjs';
 import { battleRules, fireRevisionFor, replayFor } from './battle.mjs';
-import { battleDataFor, battleDataReport } from './battle-data.mjs';
+import { barracksDisplayData, battleDataFor, battleDataReport } from './battle-data.mjs';
 import { timeline } from './round.mjs';
 
 export function newRoundArchive(session, roundNumber, startedAt, complete = true) {
@@ -58,6 +58,6 @@ export function betDataReport(record, frames) {
   return {
     format: 'bet-arena/bet_data', version: 1, sessionId: record.sessionId, roundNumber: record.roundNumber,
     bet_log: record.bet_log, battle_data: record.battle_data,
-    battle_log: record.log ? { ...record.log, frames } : null,
+    battle_log: record.log ? { ...record.log, barracks: barracksDisplayData(record.battle_data?.round.loadout), frames } : null,
   };
 }

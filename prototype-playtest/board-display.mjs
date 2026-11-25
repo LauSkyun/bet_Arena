@@ -13,6 +13,27 @@ export const barracksLabel = (name) => labels.get(name)?.[0] ?? Array.from(name)
 export const glyphFor = (name) => labels.get(name)?.[1] ?? (!name || name === '基础卒' ? '卒' : Array.from(name)[0]);
 export const unitName = (name) => name || '基础卒';
 
+export function appendBuildingMarker(cell, { symbol, level }) {
+  const title = document.createElement('span');
+  title.className = 'building-name';
+  title.textContent = symbol;
+  const bar = document.createElement('span');
+  bar.className = 'building-health';
+  bar.setAttribute('aria-hidden', 'true');
+  cell.append(bar, title);
+  if (level) {
+    const grade = document.createElement('span');
+    grade.className = 'building-level';
+    grade.textContent = `${level}级`;
+    cell.append(grade);
+  }
+}
+
+export function setBuildingHealth(cell, hp, maxHp) {
+  const width = maxHp ? `${hp / maxHp * 100}%` : '';
+  if (cell.style.getPropertyValue('--building-hp') !== width) cell.style.setProperty('--building-hp', width);
+}
+
 export function battleResultReason({ winner, scores, fallenBases, decidedBy, damage }) {
   if (winner === 'void' || !scores) return '';
   const fallen = Array.isArray(fallenBases) ? fallenBases.filter((side) => side === 'red' || side === 'blue') : [];
