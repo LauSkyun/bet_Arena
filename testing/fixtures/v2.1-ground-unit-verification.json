@@ -1,0 +1,216 @@
+{
+  "commit": "5fc6d21e1bf8bc62420db487743beb07d547db4f",
+  "rule": 12,
+  "checks": 57,
+  "byUnit": [
+    {
+      "id": 2,
+      "name": "陆战队员",
+      "range": 3,
+      "edge": 9,
+      "before": 280,
+      "after": 271,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 3,
+      "name": "火蝠",
+      "range": 1,
+      "edge": 39,
+      "before": 280,
+      "after": 241,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 4,
+      "name": "幽灵",
+      "range": 5,
+      "edge": 88,
+      "before": 280,
+      "after": 192,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 5,
+      "name": "秃鹰车",
+      "range": 3,
+      "edge": 15,
+      "before": 280,
+      "after": 265,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 6,
+      "name": "攻城坦克",
+      "range": 3,
+      "edge": 30,
+      "before": 280,
+      "after": 250,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 7,
+      "name": "歌利亚",
+      "range": 5,
+      "edge": 27,
+      "before": 280,
+      "after": 253,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 10,
+      "name": "医疗兵",
+      "range": 3,
+      "edge": 12,
+      "before": 120,
+      "after": 132,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 12,
+      "name": "狂热者",
+      "range": 1,
+      "edge": 24,
+      "before": 280,
+      "after": 256,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 13,
+      "name": "追猎者",
+      "range": 3,
+      "edge": 19,
+      "before": 280,
+      "after": 261,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 14,
+      "name": "黑暗圣堂武士",
+      "range": 1,
+      "edge": 65,
+      "before": 280,
+      "after": 215,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 15,
+      "name": "执政官",
+      "range": 3,
+      "edge": 16,
+      "before": 280,
+      "after": 264,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 16,
+      "name": "金甲虫",
+      "range": 5,
+      "edge": 100,
+      "before": 280,
+      "after": 180,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 17,
+      "name": "巨像",
+      "range": 3,
+      "edge": 30,
+      "before": 280,
+      "after": 250,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 22,
+      "name": "小狗",
+      "range": 1,
+      "edge": 6,
+      "before": 280,
+      "after": 274,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 23,
+      "name": "刺蛇",
+      "range": 3,
+      "edge": 10,
+      "before": 280,
+      "after": 270,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 25,
+      "name": "猛犸",
+      "range": 1,
+      "edge": 28,
+      "before": 280,
+      "after": 252,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 26,
+      "name": "蟑螂",
+      "range": 3,
+      "edge": 15,
+      "before": 280,
+      "after": 265,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    },
+    {
+      "id": 27,
+      "name": "爆虫",
+      "range": 1,
+      "edge": 68,
+      "before": 280,
+      "after": 212,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": false
+    },
+    {
+      "id": 28,
+      "name": "遁地兽",
+      "range": 3,
+      "edge": 30,
+      "before": 280,
+      "after": 250,
+      "mirrored": true,
+      "outside": false,
+      "sourcePresent": true
+    }
+  ]
+}
