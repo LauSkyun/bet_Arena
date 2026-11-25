@@ -1,13 +1,15 @@
-import { arenaRequest } from './shared-client.mjs';
+import { accountChangeKey, arenaRequest } from './shared-client.mjs';
 
 const element = (id) => document.getElementById(id);
 const rows = element('history-rows');
 const more = element('history-more');
 const notice = element('history-notice');
+const accountName = element('history-account');
+const table = element('history-scroll');
 const resultName = { red: '红队获胜', blue: '蓝队获胜', draw: '平局', void: '本轮作废' };
 let uid;
 let next = null;
-let loading = false;
+let pending;
 
 function historyRow(entry) {
   const tr = document.createElement('tr');
@@ -27,36 +29,60 @@ function historyRow(entry) {
   return tr;
 }
 
+function clearHistory() {
+  pending?.abort();
+  pending = undefined;
+  uid = undefined;
+  next = null;
+  accountName.textContent = '';
+  rows.replaceChildren();
+  table.hidden = true;
+  more.hidden = true;
+  notice.textContent = '正在读取历史。';
+}
+
+function refreshHistory() {
+  clearHistory();
+  if (document.visibilityState === 'visible') void load(null);
+}
+
 async function load(before) {
-  if (loading) return;
-  loading = true;
+  if (pending) return;
+  const request = new AbortController();
+  pending = request;
   more.disabled = true;
   try {
-    const page = await arenaRequest(before ? `history?before=${before}` : 'history');
-    if (!before || uid !== page.account.uid) rows.replaceChildren();
+    const page = await arenaRequest(before ? `history?before=${before}` : 'history', undefined, { signal: request.signal });
+    if (request !== pending) return;
     if (before && uid !== page.account.uid) {
-      location.reload();
+      refreshHistory();
       return;
     }
     uid = page.account.uid;
-    element('history-account').textContent = page.account.name;
+    accountName.textContent = page.account.name;
     rows.append(...page.entries.map(historyRow));
-    element('history-scroll').hidden = rows.childElementCount === 0;
+    table.hidden = rows.childElementCount === 0;
     notice.textContent = rows.childElementCount ? '' : '暂无已结算的下注记录。';
     next = page.next;
+    more.textContent = '加载更早记录';
     more.hidden = !next;
   } catch (error) {
+    if (request !== pending) return;
     notice.textContent = error.message;
     more.hidden = false;
     more.textContent = '重试';
   } finally {
-    more.disabled = false;
-    loading = false;
+    if (request === pending) {
+      more.disabled = false;
+      pending = undefined;
+    }
   }
 }
 
-more.addEventListener('click', () => {
-  more.textContent = '加载更早记录';
-  void load(next);
+more.addEventListener('click', () => void load(next));
+window.addEventListener('pageshow', refreshHistory);
+window.addEventListener('pagehide', clearHistory);
+window.addEventListener('storage', (event) => {
+  if (event.key === accountChangeKey) refreshHistory();
 });
-window.addEventListener('pageshow', () => void load(null));
+document.addEventListener('visibilitychange', refreshHistory);

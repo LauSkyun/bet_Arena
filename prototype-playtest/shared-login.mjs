@@ -1,4 +1,4 @@
-import { arenaRequest } from './shared-client.mjs';
+import { announceAccountChange, arenaRequest } from './shared-client.mjs';
 
 const form = document.getElementById('login');
 const username = document.getElementById('username');
@@ -10,6 +10,7 @@ form.addEventListener('submit', async (event) => {
   notice.textContent = '';
   try {
     await arenaRequest('login', { username: username.value });
+    announceAccountChange();
     location.replace('/arena/');
   } catch (error) {
     notice.textContent = error.message;

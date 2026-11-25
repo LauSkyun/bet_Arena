@@ -1,8 +1,17 @@
-export async function arenaRequest(path, data, { allowMissing = false } = {}) {
+export const accountChangeKey = 'bet-arena.shared.account-change';
+
+export function announceAccountChange() {
+  try { localStorage.setItem(accountChangeKey, crypto.randomUUID()); }
+  catch { /* History also checks the current session when it becomes visible. */ }
+}
+
+export async function arenaRequest(path, data, { allowMissing = false, signal } = {}) {
   const options = data === undefined ? {} : {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data),
   };
-  const response = await fetch(`/api/${path}`, { ...options, signal: AbortSignal.timeout(6000) });
+  const timeout = AbortSignal.timeout(6000);
+  const response = await fetch(`/api/${path}`, { ...options, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  signal?.throwIfAborted();
   if (response.status === 401) {
     location.replace('/');
     throw new Error('请重新进入试玩。');
@@ -46,6 +55,7 @@ export function mountAccountNav() {
     logout.disabled = true;
     try {
       await arenaRequest('logout', {});
+      announceAccountChange();
       location.replace('/');
     } catch (error) {
       document.getElementById('notice').textContent = error.message;
