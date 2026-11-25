@@ -51,11 +51,12 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   const balanceFor = db.prepare('SELECT balance FROM accounts WHERE uid = ?');
   const setBalance = db.prepare('UPDATE accounts SET balance = ? WHERE uid = ?');
   const archivedRound = db.prepare('SELECT data FROM rounds WHERE number = ?');
+  const hasArchive = db.prepare('SELECT 1 FROM rounds WHERE number = ?');
   const roundBets = db.prepare('SELECT uid, data FROM bets WHERE round = ? ORDER BY rowid');
   const personalBets = db.prepare('SELECT data FROM bets WHERE uid = ? AND round = ? ORDER BY rowid');
   const roundHistory = db.prepare('SELECT data FROM history WHERE uid = ? AND round = ?');
   const setHistory = db.prepare('INSERT INTO history VALUES (?, ?, ?)');
-  const storeRound = db.prepare('INSERT OR IGNORE INTO rounds VALUES (?, ?)');
+  const storeRound = db.prepare('INSERT INTO rounds VALUES (?, ?)');
   const historyPage = db.prepare('SELECT data FROM history WHERE uid = ? AND round < ? ORDER BY round DESC LIMIT 21');
   const findRequest = db.prepare('SELECT side, amount, data FROM bets WHERE uid = ? AND round = ? AND request_id = ?');
   const storeRequest = db.prepare('INSERT INTO bets VALUES (?, ?, ?, ?, ?, ?)');
@@ -83,8 +84,8 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
     return { ...round, teams, receipts, snapshot: round.snapshot ? { ...round.snapshot, teams, stakes, receipts } : null };
   }
 
-  function settleRound(round) {
-    if (!storeRound.run(round.number, JSON.stringify(round)).changes) return;
+  function settleRound(state, round) {
+    if (hasArchive.get(round.number)) return;
     const byAccount = new Map();
     for (const row of roundBets.all(round.number)) {
       const { receipt } = parse(row);
@@ -92,6 +93,16 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       if (!byAccount.has(row.uid)) byAccount.set(row.uid, []);
       byAccount.get(row.uid).push(receipt);
     }
+    if (!byAccount.size) return;
+    const snapshot = newRoundArchive(state, round.number, round.startedAt);
+    saveBattleSnapshot(snapshot, state, round);
+    const frames = [];
+    const time = timeline(round);
+    if (round.result.winner !== 'void') {
+      recordBattleFrames(snapshot, time.finish - time.battle, round.result, (frame) => frames.push(frame));
+      snapshot.log.settlement = null;
+    }
+    storeRound.run(round.number, JSON.stringify({ round, log: snapshot.log, frames }));
     for (const [uid, receipts] of byAccount) {
       const { balance } = balanceFor.get(uid);
       const personal = personalRound({ ...round, result: null }, receipts);
@@ -103,8 +114,8 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
 
   function tick(now) {
     const current = parse(load.get());
-    const moved = advance(current, now, { finished: settleRound });
-    if (moved.round.result) settleRound(moved.round);
+    const moved = advance(current, now, { finished: (round) => settleRound(current, round) });
+    if (moved.round.result && (moved.round.number !== current.round.number || !current.round.result)) settleRound(moved, moved.round);
     if (moved === current) return current;
     const state = { ...moved, balance: 0, previous: null };
     save.run(JSON.stringify(state));
@@ -199,7 +210,8 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       if (expectedUid != null && uid !== expectedUid) return { archive: null };
       const current = number === state.round.number;
       const settlement = parse(roundHistory.get(uid, number));
-      const round = current ? state.round : settlement ? parse(archivedRound.get(number)) : null;
+      const stored = current || settlement ? parse(archivedRound.get(number)) : null;
+      const round = current ? state.round : stored?.round;
       if (!round) return { archive: null };
       const receipts = logEntries(personalBets.all(uid, number));
       const personal = personalRound({ ...round, result: settlement }, receipts);
@@ -207,11 +219,15 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       record.bet_log.entries = recoverBetEntries(receipts, round.reference.slice(0, round.referenceIndex), round.startedAt);
       saveBattleSnapshot(record, state, personal);
       if (!record.battle_data) record.battle_data = battleDataReport(battleDataFor(personal), 'bet', now - round.startedAt);
+      const result = round.result ? settlement ?? spectatorResult(round.result, balanceFor.get(uid).balance) : null;
+      if (stored?.log) {
+        record.log = { ...stored.log, settlement: result };
+        return { archive: betDataReport(record, stored.frames) };
+      }
       const frames = [];
-      if (round.snapshot) {
+      if (round.snapshot && round.result?.winner !== 'void') {
         const time = timeline(round);
         const cutoff = round.result ? time.finish - time.battle : now - time.battle;
-        const result = round.result ? settlement ?? spectatorResult(round.result, balanceFor.get(uid).balance) : null;
         recordBattleFrames(record, cutoff, result, (frame) => frames.push(frame));
       }
       return { archive: betDataReport(record, frames) };

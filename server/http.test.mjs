@@ -25,6 +25,8 @@ test('HTTP concurrent clients share a round and credits while account details re
     return { ...(await response.json()).account, cookie: response.headers.getSetCookie()[0].split(';')[0] };
   }
   assert.equal((await get('/api/state')).status, 401);
+  assert.match(await (await get('/arena/')).text(), /<body data-shared-arena>/);
+  assert.equal((await get('/replay/gm-replay.mjs')).status, 200);
   const [a, same, b] = await Promise.all([login('Alpha'), login('ＡＬＰＨＡ'), login('Beta')]);
   assert.equal(a.uid, same.uid);
   assert.notEqual(a.uid, b.uid);
@@ -54,6 +56,10 @@ test('HTTP concurrent clients share a round and credits while account details re
   assert.equal(history.entries.length, 1);
   assert.equal(history.entries[0].stake, 500);
   assert.equal((await get('/api/archive?round=2', b.cookie)).status, 404);
+  assert.equal((await get(`/api/archive?round=1&uid=${a.uid}`, b.cookie)).status, 404);
+  const download = await get(`/api/archive?round=1&uid=${b.uid}&download=1`, b.cookie);
+  assert.equal(download.headers.get('content-disposition'), 'attachment; filename="bet-data-round-1.json"');
+  assert.equal((await download.json()).format, 'bet-arena/bet_data');
   const drawAccount = await login('Draw');
   now = timeline(sealed).next;
   const roundNumber = (await state(drawAccount)).round.number;

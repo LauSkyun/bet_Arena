@@ -57,6 +57,7 @@ test('one SQLite arena settles each account, keeps requests replayable, and resu
     assert.equal(result.credit, credit);
     assert.equal(result.balanceAfter, 10_000 - result.stake + credit);
   }
+  const settledLog = arena.archive(bob.token, 1).archive.battle_log;
   const spectator = arena.archive(guest.token, 1).archive.battle_log.settlement;
   assert.deepEqual([spectator.stake, spectator.credit, spectator.balanceAfter], [0, 0, 10_000]);
   now = timeline(sealed).next;
@@ -69,10 +70,33 @@ test('one SQLite arena settles each account, keeps requests replayable, and resu
   assert.deepEqual(arena.history(guest.token).entries, []);
   assert.equal(arena.archive(guest.token, 1).archive, null);
   const archive = arena.archive(bob.token, 1).archive;
+  assert.deepEqual(archive.battle_log, settledLog);
   assert.equal(archive.bet_log.entries.filter(({ source }) => source === 'player').length, 1);
   assert.equal(replayFromReport(archive).result.winner, bobResult.winner);
   assert.equal(arena.bet(bob.token, second).replayed, true);
   arena.logout(login.token);
   assert.equal(arena.state(login.token), null);
   assert.equal(arena.state(same.token).session.balance, aliceResult.balanceAfter);
+});
+
+
+test('personal history uses a round cursor without losing or repeating entries', () => {
+  let now = 0;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 1000, battleMs: 500 } });
+  try {
+    const account = arena.login('History');
+    for (let roundNumber = 1; roundNumber <= 22; roundNumber++) {
+      const request = { sessionId: account.account.uid, roundNumber, requestId: 'wager', side: 'red', amount: 1 };
+      const bet = arena.bet(account.token, request);
+      assert.ok(bet.receipt);
+      now = timeline(bet.session.round).next;
+      arena.tick();
+    }
+    const first = arena.history(account.token);
+    assert.deepEqual(first.entries.map(({ round }) => round), Array.from({ length: 20 }, (_, i) => 22 - i));
+    assert.equal(first.next, 3);
+    const second = arena.history(account.token, first.next);
+    assert.deepEqual(second.entries.map(({ round }) => round), [2, 1]);
+    assert.equal(second.next, null);
+  } finally { arena.close(); }
 });
