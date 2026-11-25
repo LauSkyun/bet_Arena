@@ -21,7 +21,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = shared ? 'bet-arena.shared.pending.v1' : 'bet-arena.prototype.pending-sc-ground-v21.v1';
+const pendingKey = shared ? storage.pendingKey : 'bet-arena.prototype.pending-sc-ground-v21.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -370,13 +370,15 @@ async function refresh() {
       const saved = sessionStorage.getItem(pendingKey);
       if (saved) {
         const request = JSON.parse(saved);
-        const archived = await archivedBetResult(request);
+        const archived = !shared || request.sessionId === session.id ? await archivedBetResult(request) : null;
         if (shared && archived?.session) {
           ({ session, now } = archived);
           render(session, now);
         }
         const receipt = archived?.receipt ?? findReceipt(session, request);
-        element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
+        if (!shared || request.sessionId === session.id) {
+          element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
+        }
         sessionStorage.removeItem(pendingKey);
       }
       pendingCheck = false;

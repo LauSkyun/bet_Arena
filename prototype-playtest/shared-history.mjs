@@ -1,4 +1,4 @@
-import { accountChangeKey, arenaRequest } from './shared-client.mjs';
+import { arenaRequest, exportArchivedRound } from './shared-client.mjs';
 
 const element = (id) => document.getElementById(id);
 const rows = element('history-rows');
@@ -20,12 +20,30 @@ function historyRow(entry) {
     const cell = tr.insertCell();
     cell.textContent = text;
   }
-  const link = document.createElement('a');
-  link.href = `/api/archive?round=${round}&uid=${encodeURIComponent(uid)}&download=1`;
-  link.download = `bet-data-round-${round}.json`;
-  link.textContent = '下载';
-  link.setAttribute('aria-label', `下载第 ${round} 局战局包`);
-  tr.insertCell().append(link);
+  const owner = uid;
+  const download = document.createElement('button');
+  download.type = 'button';
+  download.className = 'secondary';
+  download.textContent = '下载';
+  download.setAttribute('aria-label', `下载第 ${round} 局战局包`);
+  download.addEventListener('click', async () => {
+    download.disabled = true;
+    try {
+      const archive = await exportArchivedRound(owner, round);
+      if (!archive) throw new Error('这局存档不可用。');
+      const url = URL.createObjectURL(new Blob([JSON.stringify(archive)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bet-data-round-${round}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      notice.textContent = error.message;
+    } finally {
+      download.disabled = false;
+    }
+  });
+  tr.insertCell().append(download);
   return tr;
 }
 
@@ -82,7 +100,4 @@ async function load(before) {
 more.addEventListener('click', () => void load(next));
 window.addEventListener('pageshow', refreshHistory);
 window.addEventListener('pagehide', clearHistory);
-window.addEventListener('storage', (event) => {
-  if (event.key === accountChangeKey) refreshHistory();
-});
 document.addEventListener('visibilitychange', refreshHistory);

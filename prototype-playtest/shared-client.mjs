@@ -1,23 +1,40 @@
-export const accountChangeKey = 'bet-arena.shared.account-change';
+const sessionKey = 'bet-arena.shared.tab-session.v1';
+export const pendingKey = 'bet-arena.shared.pending.v1';
 
-export function announceAccountChange() {
-  try { localStorage.setItem(accountChangeKey, crypto.randomUUID()); }
-  catch { /* History also checks the current session when it becomes visible. */ }
+export async function signIn(username) {
+  const { token } = await arenaRequest('login', { username });
+  sessionStorage.setItem(sessionKey, token);
+}
+
+function signOut() {
+  sessionStorage.removeItem(sessionKey);
+  location.replace('/');
 }
 
 export async function arenaRequest(path, data, { allowMissing = false, signal } = {}) {
-  const options = data === undefined ? {} : {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data),
-  };
+  const login = path === 'login';
+  const token = login ? null : sessionStorage.getItem(sessionKey);
+  if (!login && !token) {
+    signOut();
+    throw new Error('请重新进入试玩。');
+  }
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const options = data === undefined ? {} : { method: 'POST', body: JSON.stringify(data) };
+  if (data !== undefined) headers.set('Content-Type', 'application/json');
   const timeout = AbortSignal.timeout(6000);
-  const response = await fetch(`/api/${path}`, { ...options, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  const response = await fetch(`/api/${path}`, {
+    ...options, headers, credentials: 'omit', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
   signal?.throwIfAborted();
-  if (response.status === 401) {
-    location.replace('/');
+  if (response.status === 401 && !login) {
+    if (sessionStorage.getItem(sessionKey) === token) signOut();
     throw new Error('请重新进入试玩。');
   }
   if (response.status === 404 && allowMissing) return null;
   const result = await response.json();
+  signal?.throwIfAborted();
+  if (!login && sessionStorage.getItem(sessionKey) !== token) throw new Error('本页账号已切换，请重新读取。');
   if (!response.ok) throw new Error(result.error || '服务暂时不可用。');
   return result;
 }
@@ -55,8 +72,8 @@ export function mountAccountNav() {
     logout.disabled = true;
     try {
       await arenaRequest('logout', {});
-      announceAccountChange();
-      location.replace('/');
+      sessionStorage.removeItem(pendingKey);
+      signOut();
     } catch (error) {
       document.getElementById('notice').textContent = error.message;
       logout.disabled = false;
