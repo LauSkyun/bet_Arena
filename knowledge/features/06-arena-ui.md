@@ -36,4 +36,4 @@
 
 ### 兵营品质
 
-#54 使用 `board-display.mjs` 的 `barracksName` 和共用样式着色。白、绿、蓝、紫、橙覆盖低到高，冻结数据中的「金」呈橙色。普通／账号清单、GM 布阵与自身回放、导入棋盘共用映射。导入从封盘优先取品质，旧档缺值回白，避免从当前兵种表套色。[需求](../../requirements/06-arena-ui/requirement.md#棋盘上的兵营兵种与射程) · [复测](../../testing/runs/2026-11-26-barracks-quality.md)
+#54 使用 `board-display.mjs` 的 `barracksName` 和共用样式着色。白、绿、蓝、紫、橙覆盖低到高，冻结数据中的「金」呈橙色。普通／账号清单、GM 布阵与自身回放、导入棋盘共用映射。导入从封盘优先取品质，旧档缺值回白，避免从当前兵种表套色。[需求](../../requirements/06-arena-ui/requirement.md#棋盘上的兵营兵种与射程) · [开发自测](../../testing/runs/2026-11-26-barracks-quality.md) · [独立验收](../../testing/runs/2026-11-26-barracks-quality-independent.md)

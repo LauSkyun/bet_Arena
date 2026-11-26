@@ -20,6 +20,7 @@
 | #49 系统下注 | [适用规则](../requirements/02-betting/requirement.md#1-参与和资源) | [XMind](cases/reference-threshold-2026-11-25.xmind) | [实测](runs/2026-11-25-reference-threshold-independent.md) |
 | #51 胜因与不计分 | [适用规则](../requirements/06-arena-ui/requirement.md#累计日志与胜因) | [XMind](cases/gm-battle-log-2026-11-25.xmind)，另补第 32 局 | [实测](runs/2026-11-25-victory-reason-independent.md) |
 | #53 重播兵营 | [适用规则](../requirements/06-arena-ui/requirement.md#导入指定战局) | [XMind](cases/gm-replay-import-2026-11-25.xmind)，另补第 32 局 | [实测](runs/2026-11-25-replay-barracks-independent.md) |
+| #54 兵营品质颜色 | [适用规则](../requirements/06-arena-ui/requirement.md#棋盘上的兵营兵种与射程) | [IT23 XMind](cases/barracks-quality-2026-11-26.xmind) | [实测](runs/2026-11-26-barracks-quality-independent.md) |
 | #52 试玩与平衡 | [验收范围](analysis/milestone-v21.md) | 30 局原批、12 局同投入、30 局自由下注 | [报告、逐局表与重播包](https://app.raft.build/artifacts/UdsLxfBRjXCeRRafzwYujR) |
 | #48 整局体验 | [当前范围](../requirements/overview.md#5-v21-地面版与验收入口) | [整局 XMind](cases/milestone-v21.xmind) | [整局联调](runs/2026-11-25-milestone-v21-independent.md) |
 
