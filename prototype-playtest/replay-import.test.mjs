@@ -35,8 +35,8 @@ test('a bundle plays stored beats and a standalone battle log yields the same fr
   assert.deepEqual(a.result, b.result);
   const firstCamp = full.battle_data.round.loadout.red.barracks[0];
   const tile = `red:${firstCamp.at.join('-')}`;
-  assert.deepEqual(a.barracks.get(tile), { name: firstCamp.unit.name, level: firstCamp.level });
-  assert.deepEqual(b.barracks.get(tile), { name: firstCamp.unit.name, level: undefined });
+  assert.deepEqual(a.barracks.get(tile), { name: firstCamp.unit.name, level: firstCamp.level, quality: firstCamp.unit.quality });
+  assert.deepEqual(b.barracks.get(tile), { name: firstCamp.unit.name, level: undefined, quality: undefined });
   assert.equal(a.source, 'log');
   assert.equal(a.recordedThroughMs, 38_000);
   assert.equal(a.result.winner, 'blue');
@@ -45,15 +45,18 @@ test('a bundle plays stored beats and a standalone battle log yields the same fr
   assert.deepEqual(replayFromReport(full), b);
 });
 
-test('standalone log pins recorded barracks names and levels before their first spawn', () => {
+test('standalone log pins recorded barracks names, levels and quality before their first spawn', () => {
   const full = fixture('round-archive/complete');
   const camp = full.battle_data.round.loadout.red.barracks[0];
   const at = camp.at;
   const log = { ...full.battle_log, complete: false, result: null, frames: [], recordedThroughMs: 0 };
   const tile = `red:${at.join('-')}`;
   assert.equal(replayFromReport(log).barracks.has(tile), false);
-  log.barracks = [null, { at: 'bad', side: 'red', name: '坏值', level: 2 }, { at, side: 'red', name: camp.unit.name, level: camp.level }];
-  assert.deepEqual(replayFromReport(log).barracks.get(tile), { name: camp.unit.name, level: camp.level });
+  log.barracks = [null, { at: 'bad', side: 'red', name: '坏值', level: 2 }, { at, side: 'red', name: camp.unit.name, level: camp.level, quality: '金' }];
+  assert.deepEqual(replayFromReport(log).barracks.get(tile), { name: camp.unit.name, level: camp.level, quality: '金' });
+  assert.equal(replayFromReport({ ...full, battle_log: log }).barracks.get(tile).quality, camp.unit.quality);
+  delete camp.unit.quality;
+  assert.equal(replayFromReport({ ...full, battle_log: log }).barracks.get(tile).quality, '金');
 });
 
 test('partial logs end at their last recorded beat without a final result', () => {

@@ -13,10 +13,20 @@ export const barracksLabel = (name) => labels.get(name)?.[0] ?? Array.from(name)
 export const glyphFor = (name) => labels.get(name)?.[1] ?? (!name || name === '基础卒' ? '卒' : Array.from(name)[0]);
 export const unitName = (name) => name || '基础卒';
 
-export function appendBuildingMarker(cell, { symbol, level }) {
+const qualityColors = new Map([['绿', 'green'], ['蓝', 'blue'], ['紫', 'purple'], ['金', 'orange'], ['橙', 'orange']]);
+
+export function barracksName(text, quality) {
   const title = document.createElement('span');
-  title.className = 'building-name';
-  title.textContent = symbol;
+  title.className = 'barracks-name';
+  title.dataset.quality = qualityColors.get(quality) ?? 'white';
+  title.textContent = text;
+  return title;
+}
+
+export function appendBuildingMarker(cell, { symbol, level, kind, quality }) {
+  const title = kind === 'barracks' ? barracksName(symbol, quality) : document.createElement('span');
+  title.classList.add('building-name');
+  if (kind !== 'barracks') title.textContent = symbol;
   const bar = document.createElement('span');
   bar.className = 'building-health';
   bar.setAttribute('aria-hidden', 'true');

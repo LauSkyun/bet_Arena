@@ -3,7 +3,7 @@ import { setupTestWallet } from './gm-wallet.mjs';
 import { setupBattleLogPanel } from './battle-log-panel.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { groundUnits } from './ground-units.mjs';
-import { barracksLabel, glyphFor } from './board-display.mjs';
+import { barracksLabel, barracksName, glyphFor } from './board-display.mjs';
 import { boardColumns, boardRows, expansionExits, keyAt, openingOwner } from './roster.mjs';
 import { teams, addBuilding, addSoldier, legalSites, mirrorScenario, newScenario, runScenario, setBuildingLevel, setHealth } from './gm-scenario.mjs';
 
@@ -39,7 +39,7 @@ function draftObjects() {
   for (const side of teams) {
     const s = round.loadout[side];
     all.push({ ref:s, side, at:s.base, kind:'base', name:s.theme+'基地', hp:s.hp, max:s.maxHp });
-    for (const b of s.barracks) all.push({ ref:b, side, at:b.at, kind:'barracks', name:b.unit.name+'营', hp:b.hp, max:b.maxHp, level:b.level });
+    for (const b of s.barracks) all.push({ ref:b, side, at:b.at, kind:'barracks', name:b.unit.name+'营', quality:b.unit.quality, hp:b.hp, max:b.maxHp, level:b.level });
     for (const u of s.startingUnits) all.push({ ref:u, side, at:u.at, kind:'soldier', name:u.name, hp:u.currentHp, max:u.hp, level:u.level });
   }
   return all;
@@ -69,14 +69,27 @@ function render() {
     const list = tiles.get(k) ?? [], first = list[0];
     const owner = frame?.owners[k] ?? openingOwner(Number(k.split('-')[0]),round.board);
     cell.className = `cell ${first?.side ?? owner ?? 'neutral'}${legal.has(k)?' gm-site':''}${k===keyAt(selected)?' selected':''}`;
-    const text = first?.kind === 'base' ? round.loadout[first.side].theme : first?.kind === 'barracks' ? barracksLabel(first.ref.unit.name)+first.level : first ? troopText(list) : frame?.terrain[k]==='ruins'?'废':'';
-    cell.textContent = text; cell.title = `${k} ${list.map(caption).join('、') || (legal.has(k)?'可建营':'空格')}`; cell.setAttribute('aria-label',cell.title);
+    if (first?.kind === 'barracks') {
+      const marker = document.createElement('span');
+      marker.append(barracksName(barracksLabel(first.ref.unit.name), first.quality), String(first.level));
+      cell.replaceChildren(marker);
+    } else {
+      cell.textContent = first?.kind === 'base' ? round.loadout[first.side].theme : first ? troopText(list) : frame?.terrain[k] === 'ruins' ? '废' : '';
+    }
+    cell.title = `${k} ${list.map(caption).join('、') || (legal.has(k)?'可建营':'空格')}`; cell.setAttribute('aria-label',cell.title);
   }
   const oldChoice = el('entity').selectedIndex;
   objects = tiles.get(keyAt(selected)) ?? [];
   el('entity').replaceChildren(...objects.map((o,i)=>new Option(caption(o),i)));
   if (objects.length) el('entity').selectedIndex = Math.max(0,Math.min(oldChoice,objects.length-1));
-  el('inspect').textContent = `${selected[0]}行${selected[1]}列 · ${objects.map(caption).join('，') || '空格'}`;
+  const inspector = el('inspect');
+  inspector.textContent = `${selected[0]}行${selected[1]}列 · ${objects.length ? '' : '空格'}`;
+  for (const [i, entry] of objects.entries()) {
+    if (i) inspector.append('，');
+    if (entry.kind === 'barracks') {
+      inspector.append(teamName[entry.side], barracksName(entry.name, entry.quality), ` ${entry.level}级 ${entry.hp}/${entry.max}`);
+    } else inspector.append(caption(entry));
+  }
   el('edit').disabled = !editing;
   const last = !editing && index===replay.frames.length-1;
   el('start').disabled=!editing; el('restart').disabled=editing; el('play').disabled=editing||last; el('step').disabled=editing||last; el('back').disabled=editing;
