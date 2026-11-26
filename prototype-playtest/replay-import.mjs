@@ -63,7 +63,11 @@ function replayBarracks(board, log, loadout) {
         !entry.at.every(positive) || !onBoard(entry.at, board)) continue;
     const name = identity(entry.name) ? entry.name : undefined;
     const level = positive(entry.level) && entry.level <= maxLevel ? entry.level : undefined;
-    if (name !== undefined || level !== undefined) byTile.set(`${entry.side}:${keyAt(entry.at)}`, { name, level });
+    const quality = identity(entry.quality) ? entry.quality : undefined;
+    const key = `${entry.side}:${keyAt(entry.at)}`;
+    const prior = byTile.get(key);
+    if (name === undefined && level === undefined && quality === undefined) continue;
+    byTile.set(key, { name: name ?? prior?.name, level: level ?? prior?.level, quality: quality ?? prior?.quality });
   }
   return byTile;
 }

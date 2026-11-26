@@ -1,4 +1,4 @@
-import { appendBuildingMarker, battleResultReason, drawShots, setBuildingHealth, barracksLabel, troopsByTile, unitName } from './board-display.mjs';
+import { appendBuildingMarker, battleResultReason, drawShots, setBuildingHealth, barracksLabel, barracksName, troopsByTile, unitName } from './board-display.mjs';
 import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
@@ -81,9 +81,18 @@ function renderTeam(side, team, phase, percent, layout, stepSize) {
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
   element(`${side}-system`).textContent = `系统投入 ${team.system} 点`;
-  const barracks = team.roster.barracks.map(({ unit, level, at }) => `〔${barracksLabel(unit.name)}〕${unit.name} ${level} 级（${at[0]}行${at[1]}列）`);
-  element(`${side}-layout`).textContent = hasExpansion(layout) ? `兵营 ${barracks.length}／${barracksLimit}${barracks.length ? ` · ${barracks.join('、')}` : ''}`
-    : barracks.join('、') || '尚无兵营';
+  const camps = team.roster.barracks;
+  const rosterList = element(`${side}-layout`);
+  const expanded = hasExpansion(layout);
+  const signature = JSON.stringify([expanded, camps.map(({ unit, level, at }) => [unit.name, unit.quality, level, at])]);
+  if (rosterList.dataset.content !== signature) {
+    rosterList.dataset.content = signature;
+    rosterList.textContent = expanded ? `兵营 ${camps.length}／${barracksLimit}${camps.length ? ' · ' : ''}` : camps.length ? '' : '尚无兵营';
+    for (const [index, { unit, level, at }] of camps.entries()) {
+      if (index) rosterList.append('、');
+      rosterList.append(barracksName(`〔${barracksLabel(unit.name)}〕${unit.name}`, unit.quality), ` ${level} 级（${at[0]}行${at[1]}列）`);
+    }
+  }
   const left = stepSize - team.total % stepSize;
   const threshold = element(`${side}-threshold`);
   threshold.hidden = phase !== 'bet';
@@ -156,7 +165,7 @@ function renderBoard(round, teams, frame, effects) {
         const reserved = markers.get(exitKey)?.kind === 'plot';
         markers.set(exitKey, { kind: reserved ? 'plot' : 'exit', symbol: '·', label: `${teamName[side]}${reserved ? '可建格兼' : ''}出兵口` });
       }
-      const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, effect, healing, directDamagePercent = 100 } = unitStats(barracks);
+      const { name, hp, damage, limit, range, attackMs, spawnMs = 500, spawnCount = 1, effect, healing, quality, directDamagePercent = 100 } = unitStats(barracks);
       const treatment = round.combatRules >= groundHealingRules ? `单次治疗${healing}，间隔${attackMs / 1000}秒` : '本局未启用治疗';
       const area = Object.hasOwn(groundAreaLabels, effect);
       const direct = Math.ceil(damage * directDamagePercent / 100);
@@ -165,7 +174,7 @@ function renderBoard(round, teams, frame, effects) {
         : area && round.combatRules >= groundAreaRules ? `${groundAreaLabels[effect]}主伤害${damage}，攻击间隔${attackMs / 1000}秒`
         : `直击伤害${direct}，攻击间隔${attackMs / 1000}秒${area ? '（本局仅直击）' : ''}`;
       const label = `${teamName[side]}${name}兵营，${level}级，出兵生命${hp}，${attack}，射程${range}格，每${spawnMs / 1000}秒出${spawnCount}兵，存活上限${limit}`;
-      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), maxHp: battleRules.barracksHp, level, range, side, label });
+      markers.set(keyAt(at), { kind: 'barracks', symbol: barracksLabel(name), quality, maxHp: battleRules.barracksHp, level, range, side, label });
     }
   }
   const troops = troopsByTile(frame?.units ?? []);
@@ -202,7 +211,7 @@ function renderBoard(round, teams, frame, effects) {
     setBuildingHealth(cell, hp, marker?.maxHp);
     const label = `${row}行${col}列，${marker?.label ?? '普通格'}${healthLabel}${claimsLand || !marker || marker.kind === 'exit' ? `，${ownerLabel}领地` : ''}${troopLabel ? '，' + troopLabel : ''}${changeLabel}`;
     if (cell.className !== css) cell.className = css;
-    const signature = troopLabel || `${marker?.symbol ?? ''}/${marker?.level ?? ''}`;
+    const signature = troopLabel || `${marker?.kind ?? ''}/${marker?.symbol ?? ''}/${marker?.level ?? ''}/${marker?.quality ?? ''}`;
     if (cell.dataset.content !== signature) {
       cell.dataset.content = signature;
       cell.replaceChildren();
