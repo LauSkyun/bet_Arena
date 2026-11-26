@@ -1,6 +1,6 @@
 import { baseVictoryRules, battleRules } from './battle.mjs';
 import { battleShotLines, setupBattleLogPanel } from './battle-log-panel.mjs';
-import { appendBuildingMarker, barracksLabel, drawShots, glyphFor, setBuildingHealth, unitName } from './board-display.mjs';
+import { appendBuildingMarker, barracksLabel, barracksName, drawShots, glyphFor, setBuildingHealth, unitName } from './board-display.mjs';
 import { replayFromReport } from './replay-import.mjs';
 import { boardColumns, boardRows, isHex, keyAt } from './roster.mjs';
 
@@ -56,6 +56,7 @@ function renderBoard(frame) {
     if (!pieces.has(key)) pieces.set(key, []);
     pieces.get(key).push(entry);
   }
+  let inspectedBarracks;
   for (const [key, cell] of cells) {
     const entries = pieces.get(key) ?? [];
     const first = entries[0];
@@ -70,19 +71,22 @@ function renderBoard(frame) {
     cell.className = `cell ${first?.side ?? frame.owners[key] ?? 'neutral'}${marker}${controlledRuins ? ' controlled-ruins' : ''}${selected === key ? ' selected' : ''}`;
     setBuildingHealth(cell, first?.hp, isBarracks ? battleRules.barracksHp : undefined);
     const text = isBarracks ? symbol : symbol + (entries.length > 1 ? entries.length : '');
-    const signature = JSON.stringify([isBarracks, text, details?.level]);
+    const signature = JSON.stringify([isBarracks, text, details?.level, details?.quality]);
     if (cell.dataset.content !== signature) {
       cell.dataset.content = signature;
       if (isBarracks) {
         cell.replaceChildren();
-        appendBuildingMarker(cell, { symbol, level: details?.level });
+        appendBuildingMarker(cell, { kind: 'barracks', symbol, level: details?.level, quality: details?.quality });
       } else cell.textContent = text;
     }
     if (isBarracks) {
       const name = details?.name ? `${details.name}兵营` : '兵营';
       const level = details?.level ? `，${details.level}级` : '';
       const missing = !details?.name || !details.level ? '，原文件缺少完整兵营资料' : '';
-      cell.title = `${key} · ${teams[first.side]}${name}${level}，建筑生命 ${first.hp}/${battleRules.barracksHp}${missing}`;
+      const prefix = `${key} · ${teams[first.side]}`;
+      const suffix = `${level}，建筑生命 ${first.hp}/${battleRules.barracksHp}${missing}`;
+      cell.title = prefix + name + suffix;
+      if (key === selected) inspectedBarracks = [prefix, barracksName(name, details?.quality), suffix];
     } else {
       cell.title = `${key} · ${entries.map((entry) => `${teams[entry.side]}${entry.kind === 'base' ? '基地' : unitName(entry.name)} #${entry.id}，生命 ${entry.hp}`).join('；') || (ruins ? '废墟' : '空格')}`;
     }
@@ -92,7 +96,7 @@ function renderBoard(frame) {
   inspector.hidden = !selected;
   if (selected) {
     const title = document.createElement('strong');
-    title.textContent = cells.get(selected).title;
+    title.append(...(inspectedBarracks ?? [cells.get(selected).title]));
     const chosenShots = frame.shots.filter((shot) => keyAt(shot.from) === selected || keyAt(shot.to) === selected);
     inspector.replaceChildren(title);
     if (chosenShots.length) {

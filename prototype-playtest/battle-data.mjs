@@ -8,7 +8,7 @@ export function barracksDisplayData(loadout) {
   return sides.flatMap((side) => {
     const barracks = loadout?.[side]?.barracks;
     return Array.isArray(barracks) ? barracks.filter((entry) => entry && typeof entry === 'object').map(({ at, unit, level }) =>
-      ({ at, side, name: unit?.name, level })) : [];
+      ({ at, side, name: unit?.name, level, quality: unit?.quality })) : [];
   });
 }
 
