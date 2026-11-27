@@ -12,9 +12,10 @@ const lockMs = 2_000;
 const resultMs = 5_000;
 const catchUpBatch = 32;
 
-export function newSession(id, now, reference = undefined, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold) {
+export function newSession(id, now, reference = undefined, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, settlementRules = undefined, gmConfig = undefined) {
   return { version: sessionVersion, id, seed, ...(reference === undefined ? {} : { reference }), nextDurations: durations, nextProfile: profile, nextThreshold: threshold, balance: betting.initialBalance,
-    round: newRound(1, now, seed, durations, board, profile, threshold, reference), previous: null };
+    ...(settlementRules === undefined ? {} : { settlementRules }), ...(gmConfig === undefined ? {} : { gmConfig }),
+    round: newRound(1, now, seed, durations, board, profile, threshold, reference, settlementRules, gmConfig), previous: null };
 }
 
 function seedFor(seed, number, side) {
@@ -24,12 +25,14 @@ function seedFor(seed, number, side) {
   return (value ^ (value >>> 15)) >>> 0;
 }
 
-function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, reference) {
+function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, reference, settlementRules = undefined, gmConfig = undefined) {
   return {
     number,
     board,
     profile,
     threshold,
+    ...(settlementRules === undefined ? {} : { settlementRules }),
+    ...(gmConfig === undefined ? {} : { gmConfig }),
     reference: reference ?? defaultRoundReference(threshold),
     combatRules: profile === groundProfile ? groundSelfDestructRules : currentCombatRules,
     fireRevision: currentFireRevision,
@@ -58,7 +61,10 @@ export function advance(session, now, observe) {
   for (let processed = 0; processed < catchUpBatch; processed++) {
     const round = session.round;
     const lock = round.startedAt + round.durations.betMs;
-    const sealed = advanceBetting(round, referenceForRound(round, session.reference), lock, now, observe?.reference);
+    // 该轮的额外计划事件（如 GM 陪练）由调用方给出，与系统参照事件在 advanceBetting 内按时点交错处理。
+    const extraEvents = observe?.extraEvents ? observe.extraEvents(round) : [];
+    const sealed = advanceBetting(round, referenceForRound(round, session.reference), lock, now,
+      observe?.reference, extraEvents, observe?.observeExtra);
     if (sealed !== round) session = { ...session, round: sealed };
     if (now < lock + lockMs) break;
     const time = timeline(sealed);
@@ -69,7 +75,7 @@ export function advance(session, now, observe) {
 
     lastFinished = session.round;
     observe?.finished(lastFinished);
-    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold, session.reference) };
+    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold, session.reference, session.settlementRules, session.gmConfig) };
   }
   if (!lastFinished) return session;
   const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>竞猜竞技场 · GM 设置</title>
+<link rel="stylesheet" href="./style.css">
+<style>
+body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;color:#222}
+h1{font-size:1.2rem} fieldset{border:1px solid #ccc;margin:1rem 0;padding:1rem}
+label{display:block;margin:.6rem 0} input[type=number]{width:6rem} button{padding:.4rem 1rem}
+.notice{min-height:1.4rem;color:#a00} .who{color:#555} a.button{display:inline-block;padding:.4rem 1rem;border:1px solid #888;border-radius:4px;text-decoration:none;color:#222}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<h1>竞猜竞技场 · GM 设置</h1>
+<p class="who" id="who"></p>
+
+<section id="guest" hidden>
+  <p>尚未登录。请用试玩账号登录后进入。</p>
+  <a class="button" href="/?returnTo=gm">前往登录</a>
+</section>
+
+<section id="readonly" hidden>
+  <p>当前账号无修改 GM 设置的权限，可查看当前配置。</p>
+</section>
+
+<form id="gm-form" hidden>
+  <fieldset>
+    <legend>下一轮结算模式</legend>
+    <label><input type="radio" name="mode" value="2" checked> 奖池（规则 2，只计玩家实扣）</label>
+    <label><input type="radio" name="mode" value="1"> 旧倍率（原结算）</label>
+  </fieldset>
+  <fieldset>
+    <legend>模拟多人下注</legend>
+    <label><input type="checkbox" id="bot-enabled"> 开启陪练</label>
+    <label>陪练人数 <input type="number" id="bot-count" value="3" min="1" max="5"></label>
+    <label>每人金额下限 <input type="number" id="bot-min" value="10" min="1"></label>
+    <label>每人金额上限 <input type="number" id="bot-max" value="200" min="1"></label>
+  </fieldset>
+  <button type="submit" id="save">保存（下轮生效）</button>
+</form>
+
+<p class="notice" id="notice" role="status"></p>
+<pre id="current" hidden></pre>
+<script type="module" src="./shared-gm.mjs"></script>
+</body>
+</html>

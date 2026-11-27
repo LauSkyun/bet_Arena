@@ -3,12 +3,15 @@ import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
+import { playerPoolRules, poolPending, poolRatesFor } from './settlement-pool.mjs';
 import { battleRules, baseVictoryRules, groundHealingRules, groundAreaRules, groundSelfDestructRules, countGround, frameAt, openingGround } from './battle.mjs';
 import { findReceipt, isFull, referenceForRound, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
 import { replayForRound, saveRoundDurations, view } from './round.mjs';
 import { secondsLimit } from './timing.mjs';
-import { archivedBetResult, archiveRoundNumbers, exportArchivedRound, resetSession, submitArchivedBet, updateSession } from './storage.mjs';
+const shared = document.body.hasAttribute('data-shared-arena');
+const storage = shared ? await import('./shared-client.mjs') : await import('./storage.mjs');
+const { archivedBetResult, archiveRoundNumbers, exportArchivedRound, submitArchivedBet, updateSession } = storage;
 
 const element = (id) => document.getElementById(id);
 const teamName = { red: '红队', blue: '蓝队' };
@@ -19,7 +22,7 @@ const statements = {
   settling: '战斗结束，正在确认积分。',
   result: '本轮积分已结算。',
 };
-const pendingKey = 'bet-arena.prototype.pending-sc-ground-v21.v1';
+const pendingKey = shared ? storage.pendingKey : 'bet-arena.prototype.pending-sc-ground-v21.v1';
 const form = element('bet-form');
 const submit = element('bet-submit');
 const amountInput = element('amount');
@@ -46,7 +49,14 @@ let savingTiming = false;
 for (const input of [betSeconds, battleSeconds]) input.max = String(secondsLimit);
 let displayed;
 let polling = false;
+const setAccount = shared ? storage.mountAccountNav() : null;
+if (shared) {
+  element('reset').hidden = true;
+  element('timing-settings').hidden = true;
+}
 let submitting = false;
+let latestBet = 0;
+const disconnected = '连接中断，正在重连。';
 let pendingCheck = true;
 
 const chosenSide = () => sideInputs.find((input) => input.checked)?.value;
@@ -67,7 +77,8 @@ function receiptMessage(receipt) {
   return changes ? `${confirmed}${changes}。` : confirmed;
 }
 
-function renderTeam(side, team, phase, percent, layout, stepSize) {
+function renderTeam(side, team, phase, percent, layout, stepSize, rateLabel = '回报率') {
+  element(`${side}-rate-label`).textContent = rateLabel;
   element(`${side}-rate`).textContent = percent === null ? '—' : `${percent}%`;
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
@@ -299,7 +310,7 @@ function render(session, now) {
   saveBattleData.disabled = false;
   copyPreviousData.hidden = !previous?.battleData;
   savePreviousData.hidden = copyPreviousData.hidden;
-  renderTiming(session);
+  if (!shared) renderTiming(session);
   element('round').textContent = String(round.number);
   element('balance').textContent = String(session.balance);
   element('time-label').textContent = clockLabel[stage.phase];
@@ -324,8 +335,14 @@ function render(session, now) {
   renderBoard(round, teams, frame, latestEffects);
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
-  const rates = round.snapshot ? round.snapshot.rates : returnsFor(teams);
-  for (const side of sides) renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold);
+  const isPool = round.snapshot ? round.snapshot.settlementRules === playerPoolRules : round.settlementRules === playerPoolRules;
+  const rates = round.snapshot ? round.snapshot.rates : round.poolView ? round.poolView.rates : isPool ? poolRatesFor(teams) : returnsFor(teams);
+  const pending = isPool && (round.poolView ? round.poolView.pending : poolPending(teams));
+  const rateLabel = isPool ? '奖池回报（含本金）' : '回报率';
+  for (const side of sides) {
+    renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold, rateLabel);
+    if (pending) element(`${side}-rate`).textContent = '待成池／退款';
+  }
   const effects = element('latest-effects');
   effects.hidden = !latestEffects.length;
   if (latestEffects.length) {
@@ -343,8 +360,15 @@ function render(session, now) {
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;
-    element('result-rate').hidden = !appliedRate;
-    if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
+    const isPlayerPool = round.result.settlementRules === 2 && round.result.pool;
+    element('result-rate').hidden = !appliedRate && !isPlayerPool;
+    if (isPlayerPool) {
+      const pool = round.result.pool;
+      const detail = pool.refund > 0
+        ? `奖池 · 单边或无赛果，退回 ${pool.refund} 点；本金／分成为 0`
+        : `奖池 · 胜方 ${pool.winnerPool}／败方 ${pool.loserPool}，抽成 ${pool.rake}，分配 ${pool.distributable}；本人本金 ${pool.principal}＋分成 ${pool.share}`;
+      element('result-rate').textContent = detail;
+    } else if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
     element('result-net').textContent = `本轮净变化 ${signed(net)} 点`;
     const change = stake && (winner === 'void' || winner === 'draw') ? '退回投入' : '本次入账';
     element('result-credit').textContent = `${change} ${credit} 点 · 结算后余额 ${balanceAfter} 点`;
@@ -357,18 +381,28 @@ function render(session, now) {
 }
 
 async function refresh() {
-  if (polling) return;
+  if (polling || (shared && submitting)) return;
   polling = true;
+  const betAtStart = latestBet;
   try {
-    const { session, now } = await updateSession();
+    let { session, now, account } = await updateSession();
+    if (shared && (submitting || betAtStart !== latestBet)) return;
+    if (account) setAccount(account);
+    if (shared && element('notice').textContent === disconnected) element('notice').textContent = '';
     render(session, now);
     if (pendingCheck && !submitting) {
       const saved = sessionStorage.getItem(pendingKey);
       if (saved) {
         const request = JSON.parse(saved);
-        const archived = await archivedBetResult(request);
+        const archived = !shared || request.sessionId === session.id ? await archivedBetResult(request) : null;
+        if (shared && archived?.session) {
+          ({ session, now } = archived);
+          render(session, now);
+        }
         const receipt = archived?.receipt ?? findReceipt(session, request);
-        element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
+        if (!shared || request.sessionId === session.id) {
+          element('notice').textContent = receipt ? receiptMessage(receipt) : archived?.error ?? '上一笔未查到确认记录，请核对本轮投入。';
+        }
         sessionStorage.removeItem(pendingKey);
       }
       pendingCheck = false;
@@ -376,7 +410,7 @@ async function refresh() {
     }
   } catch {
     submit.disabled = true;
-    element('notice').textContent = '读取试玩记录失败，正在重新读取。';
+    element('notice').textContent = shared ? disconnected : '读取试玩记录失败，正在重新读取。';
   } finally {
     polling = false;
   }
@@ -397,11 +431,13 @@ form.addEventListener('submit', async (event) => {
     return;
   }
   const request = { sessionId: session.id, roundNumber: session.round.number, side, amount, requestId: crypto.randomUUID() };
+  latestBet++;
   submitting = true;
   renderControls(session, phase);
   try {
     sessionStorage.setItem(pendingKey, JSON.stringify(request));
     const response = await submitArchivedBet(request);
+    if (response.account) setAccount(response.account);
     render(response.session, response.now);
     element('notice').textContent = response.receipt ? receiptMessage(response.receipt) : response.error;
     sessionStorage.removeItem(pendingKey);
@@ -515,10 +551,10 @@ timingForm.addEventListener('submit', async (event) => {
   }
 });
 
-element('reset').addEventListener('click', async () => {
+if (!shared) element('reset').addEventListener('click', async () => {
   if (!window.confirm('开始新的试玩会话并把测试积分重置为 10,000 点？')) return;
   try {
-    const { session, now } = await resetSession();
+    const { session, now } = await storage.resetSession();
     sessionStorage.removeItem(pendingKey);
     timingDraft = false;
     element('timing-feedback').textContent = '';

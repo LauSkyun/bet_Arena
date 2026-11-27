@@ -1,6 +1,7 @@
 import { battleLoadout } from './roster.mjs';
 import { referenceForRound, stakesFor } from './betting.mjs';
 import { returnsFor } from './returns.mjs';
+import { playerPoolRules, poolRatesFor } from './settlement-pool.mjs';
 
 const sides = ['red', 'blue'];
 
@@ -22,7 +23,7 @@ export function battleDataFor(round, reference) {
     threshold: round.threshold,
     sealed: Boolean(snapshot),
     stakes,
-    rates: snapshot ? snapshot.rates : returnsFor(teams),
+    rates: snapshot ? snapshot.rates : round.poolView ? round.poolView.rates : round.settlementRules === playerPoolRules ? poolRatesFor(teams) : returnsFor(teams),
     totals: Object.fromEntries(sides.map((side) => [side, teams[side].total])),
     bets: round.receipts.map(({ side, amount, confirmedAt }) => ({ side, amount, elapsedMs: confirmedAt - round.startedAt })),
     reference: referenceForRound(round, reference),

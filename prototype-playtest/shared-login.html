@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>进入多人竞猜竞技场</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="account-login">
+    <header><h1>多人竞猜竞技场</h1></header>
+    <form id="login" class="panel account-login-form">
+      <label for="username">试玩用户名</label>
+      <input id="username" name="username" autocomplete="username" maxlength="64" required aria-describedby="login-help">
+      <p id="login-help" class="subheading">首次进入领取 10,000 测试积分。每个标签页可以登录不同账号。同一用户名可续接余额和历史。</p>
+      <button type="submit">进入竞技场</button>
+      <p id="login-notice" class="notice" role="status"></p>
+    </form>
+  </main>
+  <script type="module" src="./shared-login.mjs"></script>
+</body>
+</html>

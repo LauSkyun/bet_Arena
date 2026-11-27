@@ -1,4 +1,5 @@
 import { returnsFor } from './returns.mjs';
+import { playerPoolRules, poolRatesFor } from './settlement-pool.mjs';
 import { battleLoadout, enhanceRoster, isRosterFull, newRoster } from './roster.mjs';
 
 export const betting = Object.freeze({ initialBalance: 10_000, threshold: 100 });
@@ -59,25 +60,51 @@ function invest(round, side, amount, source) {
   };
 }
 
-export function advanceBetting(round, reference, lockAt, now, observeReference) {
+// 把系统参照事件与额外事件（如 GM 陪练）合并成按计划时点排序的单一事件流。
+// 两类事件都走 invest，强化等级归属只取决于 invest 的先后顺序；连续推进与补跑因此一致。
+// extraEvents: [{ requestId, side, amount, elapsedMs }]；observeExtra(updatedRound, event) 供调用方落库回执。
+export function advanceBetting(round, reference, lockAt, now, observeReference, extraEvents = [], observeExtra) {
   if (round.snapshot) return round;
   let updated = round;
-  while (updated.referenceIndex < reference.length) {
-    const event = reference[updated.referenceIndex];
-    const at = round.startedAt + event.elapsed;
+  const system = reference.slice(updated.referenceIndex).map((event, offset) => ({
+    elapsed: event.elapsed, side: event.side, amount: event.amount,
+    source: 'system', refIndex: updated.referenceIndex + offset, event,
+  }));
+  const extra = extraEvents.map((event) => ({
+    elapsed: event.elapsedMs, side: event.side, amount: event.amount,
+    source: 'player', requestId: event.requestId, event,
+  }));
+  const timeline = [...system, ...extra].sort((a, b) => {
+    if (a.elapsed !== b.elapsed) return a.elapsed - b.elapsed;
+    if (a.source !== b.source) return a.source === 'system' ? -1 : 1;
+    return a.source === 'system' ? a.refIndex - b.refIndex : String(a.requestId).localeCompare(String(b.requestId));
+  });
+  for (const item of timeline) {
+    const at = round.startedAt + item.elapsed;
     if (at > now || at >= lockAt) break;
-    updated = { ...invest(updated, event.side, event.amount, 'system'), referenceIndex: updated.referenceIndex + 1 };
-    observeReference?.(updated, event, updated.referenceIndex);
+    if (item.source === 'player') {
+      // 与真人在 arena.bet 相同的公共总投闸门。
+      const total = updated.teams.red.total + updated.teams.blue.total;
+      if (item.amount > maxReferenceThreshold - total) continue;
+    }
+    updated = invest(updated, item.side, item.amount, item.source);
+    if (item.source === 'system') {
+      updated = { ...updated, referenceIndex: item.refIndex + 1 };
+      observeReference?.(updated, item.event, updated.referenceIndex);
+    } else {
+      observeExtra?.(updated, item.event);
+    }
   }
   if (now < lockAt) return updated;
   const snapshot = {
     roundNumber: updated.number,
     stakes: stakesFor(updated.teams),
-    rates: returnsFor(updated.teams),
+    rates: updated.settlementRules === playerPoolRules ? poolRatesFor(updated.teams) : returnsFor(updated.teams),
     teams: updated.teams,
     battle: { red: battleLoadout(updated.teams.red.roster, updated.board, updated.combatRules), blue: battleLoadout(updated.teams.blue.roster, updated.board, updated.combatRules) },
     receipts: updated.receipts,
     lockedAt: lockAt,
+    ...(updated.settlementRules === undefined ? {} : { settlementRules: updated.settlementRules }),
   };
   return { ...updated, snapshot };
 }
