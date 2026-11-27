@@ -6,7 +6,7 @@ import { groundProfile } from '../prototype-playtest/profiles.mjs';
 import { advance, newSession, timeline } from '../prototype-playtest/round.mjs';
 import { betDataReport, newRoundArchive, recordBattleFrames, recoverBetEntries, saveBattleSnapshot } from '../prototype-playtest/round-archive.mjs';
 import { settleSession } from '../prototype-playtest/settlement.mjs';
-import { playerPoolRules } from '../prototype-playtest/settlement-pool.mjs';
+import { playerPoolRules, poolPending, poolRatesFor } from '../prototype-playtest/settlement-pool.mjs';
 
 const day = 86_400_000;
 const parse = (row) => row ? JSON.parse(row.data) : null;
@@ -95,7 +95,10 @@ export function openArena(path, { clock = Date.now, durations, seed } = {}) {
     const stakes = { ...emptyStakes };
     for (const { side, amount } of receipts) stakes[side] += amount;
     const teams = Object.fromEntries(Object.entries(round.teams).map(([side, team]) => [side, { ...team, player: stakes[side] }]));
-    return { ...round, teams, receipts, snapshot: round.snapshot ? { ...round.snapshot, teams, stakes, receipts } : null };
+    // 奖池成池与否、展示倍率用服务器的公共实扣合计判定，不随个人票据改写。
+    const poolView = round.settlementRules === playerPoolRules
+      ? { rates: poolRatesFor(round.teams), pending: poolPending(round.teams) } : null;
+    return { ...round, teams, receipts, poolView, snapshot: round.snapshot ? { ...round.snapshot, teams, stakes, receipts } : null };
   }
 
   function settleRound(state, round) {

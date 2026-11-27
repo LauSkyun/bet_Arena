@@ -23,7 +23,7 @@ export function battleDataFor(round, reference) {
     threshold: round.threshold,
     sealed: Boolean(snapshot),
     stakes,
-    rates: snapshot ? snapshot.rates : round.settlementRules === playerPoolRules ? poolRatesFor(teams) : returnsFor(teams),
+    rates: snapshot ? snapshot.rates : round.poolView ? round.poolView.rates : round.settlementRules === playerPoolRules ? poolRatesFor(teams) : returnsFor(teams),
     totals: Object.fromEntries(sides.map((side) => [side, teams[side].total])),
     bets: round.receipts.map(({ side, amount, confirmedAt }) => ({ side, amount, elapsedMs: confirmedAt - round.startedAt })),
     reference: referenceForRound(round, reference),

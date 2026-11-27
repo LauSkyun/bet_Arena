@@ -336,8 +336,8 @@ function render(session, now) {
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
   const isPool = round.snapshot ? round.snapshot.settlementRules === playerPoolRules : round.settlementRules === playerPoolRules;
-  const rates = round.snapshot ? round.snapshot.rates : isPool ? poolRatesFor(teams) : returnsFor(teams);
-  const pending = isPool && poolPending(teams);
+  const rates = round.snapshot ? round.snapshot.rates : round.poolView ? round.poolView.rates : isPool ? poolRatesFor(teams) : returnsFor(teams);
+  const pending = isPool && (round.poolView ? round.poolView.pending : poolPending(teams));
   const rateLabel = isPool ? '奖池回报（含本金）' : '回报率';
   for (const side of sides) {
     renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold, rateLabel);

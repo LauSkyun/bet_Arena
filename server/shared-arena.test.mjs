@@ -234,3 +234,28 @@ test('spectators see zero personal principal and share; refund keeps refund with
     assert.equal(viewer.pool.distributable, 95);
   } finally { arena.close(); }
 });
+
+
+test('open-phase page and download use public pool rates, not personal stakes', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 });
+  try {
+    const a = arena.login('Open A');
+    const b = arena.login('Open B');
+    const watch = arena.login('Open Watch');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'o', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    // no tick past lock: still open. Every account, including a spectator, sees public pool rates.
+    for (const acct of [a, b, watch]) {
+      const round = arena.state(acct.token).session.round;
+      assert.deepEqual(round.poolView.rates, { red: 195, blue: 195 });
+      assert.equal(round.poolView.pending, false);
+      const download = arena.archive(acct.token, 1).archive.battle_data.round.rates;
+      assert.deepEqual(download, { red: 195, blue: 195 });
+    }
+    // personal stakes stay personal in the page view.
+    assert.deepEqual(arena.state(a.token).session.round.teams.red.player, 100);
+    assert.deepEqual(arena.state(watch.token).session.round.teams.red.player, 0);
+  } finally { arena.close(); }
+});
