@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>竞猜竞技场 · GM 设置（dev）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;color:#222}
+h1{font-size:1.2rem} fieldset{border:1px solid #ccc;margin:1rem 0;padding:1rem}
+label{display:block;margin:.6rem 0} input[type=number]{width:6rem} button{padding:.4rem 1rem}
+.notice{min-height:1.4rem;color:#a00} code{background:#f4f4f4;padding:.1rem .3rem}
+</style>
+</head>
+<body>
+<h1>竞猜竞技场 · GM 设置</h1>
+<p>仅 dev 使用。写入需要 GM 密钥；普通试玩用户名无法修改。配置在<b>下一新建轮次</b>生效，当前轮次不变。</p>
+<fieldset>
+<legend>GM 密钥</legend>
+<label>密钥 <input type="password" id="gm-key" autocomplete="off"></label>
+</fieldset>
+<fieldset>
+<legend>下一轮结算模式</legend>
+<label><input type="radio" name="mode" value="2" checked> 奖池（规则 2，只计玩家实扣）</label>
+<label><input type="radio" name="mode" value="1"> 旧倍率（原结算）</label>
+</fieldset>
+<fieldset>
+<legend>模拟多人下注</legend>
+<label><input type="checkbox" id="bot-enabled"> 开启陪练</label>
+<label>陪练人数 <input type="number" id="bot-count" value="3" min="1" max="5"></label>
+<label>每人金额下限 <input type="number" id="bot-min" value="10" min="1"></label>
+<label>每人金额上限 <input type="number" id="bot-max" value="200" min="1"></label>
+</fieldset>
+<button id="save">保存（下轮生效）</button>
+<button id="reload">读取当前配置</button>
+<p class="notice" id="notice"></p>
+<pre id="current"></pre>
+<script>
+const el = (id) => document.getElementById(id);
+const notice = (text) => { el('notice').textContent = text || ''; };
+async function read() {
+  try {
+    const res = await fetch('/api/gm/config');
+    const data = await res.json();
+    el('current').textContent = JSON.stringify(data, null, 2);
+    const c = data.gmConfig || {};
+    const mode = String(c.settlementMode ?? 2);
+    const radio = document.querySelector(`input[name=mode][value="${mode}"]`);
+    if (radio) radio.checked = true;
+    el('bot-enabled').checked = Boolean(c.botEnabled);
+    if (c.botCount) el('bot-count').value = c.botCount;
+    if (c.minAmount) el('bot-min').value = c.minAmount;
+    if (c.maxAmount) el('bot-max').value = c.maxAmount;
+  } catch (e) { notice('读取失败：' + e.message); }
+}
+async function save() {
+  notice('');
+  const value = {
+    settlementMode: Number(document.querySelector('input[name=mode]:checked').value),
+    botEnabled: el('bot-enabled').checked,
+    botCount: Number(el('bot-count').value),
+    minAmount: Number(el('bot-min').value),
+    maxAmount: Number(el('bot-max').value),
+  };
+  try {
+    const res = await fetch('/api/gm/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-GM-Key': el('gm-key').value },
+      body: JSON.stringify(value),
+    });
+    const data = await res.json();
+    if (!res.ok) { notice(data.error || '保存失败'); return; }
+    notice(`已保存，下一轮（第 ${data.roundNumber} 轮）生效。`);
+    await read();
+  } catch (e) { notice('保存失败：' + e.message); }
+}
+el('save').addEventListener('click', save);
+el('reload').addEventListener('click', read);
+read();
+</script>
+</body>
+</html>

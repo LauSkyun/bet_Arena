@@ -9,6 +9,7 @@ const contentTypes = { html: 'text/html', mjs: 'text/javascript', css: 'text/css
 const root = new URL('../prototype-playtest/', import.meta.url);
 const assets = new Map([
   ['/', 'shared-login.html'], ['/arena/', 'index.html'], ['/history/', 'shared-history.html'], ['/replay/', 'replay.html'],
+  ['/gm/', 'shared-gm.html'],
 ]);
 
 function tokenFor(request) {
@@ -52,7 +53,7 @@ function staticFile(request, response, pathname) {
   return true;
 }
 
-export function createArenaServer({ arena }) {
+export function createArenaServer({ arena, gmKey } = {}) {
   return createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -75,6 +76,15 @@ export function createArenaServer({ arena }) {
       if (method === 'POST' && pathname === '/api/logout') {
         arena.logout(token);
         return json(response, 200, {});
+      }
+      if (method === 'GET' && pathname === '/api/gm/config') {
+        return json(response, 200, { gmConfig: arena.gmConfig(), enabled: Boolean(gmKey) });
+      }
+      if (method === 'POST' && pathname === '/api/gm/config') {
+        const data = await bodyFor(request);
+        const key = request.headers['x-gm-key'];
+        const result = arena.configure(key, data);
+        return json(response, result.error ? 403 : 200, result);
       }
       let data;
       if (method === 'GET' && pathname === '/api/state') data = arena.state(token);
@@ -112,8 +122,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const durations = durationsFromSeconds(Number(process.env.ARENA_BET_SECONDS ?? 60), Number(process.env.ARENA_BATTLE_SECONDS ?? 40));
   if (!durations || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('ARENA_PORT and round durations must be valid.');
   mkdirSync(dirname(file), { recursive: true });
-  const arena = openArena(file, { durations });
-  const server = createArenaServer({ arena });
+  const gmKey = process.env.ARENA_GM_KEY || undefined;
+  const arena = openArena(file, { durations, gmKey });
+  const server = createArenaServer({ arena, gmKey });
   server.listen(port, host, () => console.log(`Shared arena listening on ${host}:${port}`));
   const timer = setInterval(() => {
     try { arena.tick(); }

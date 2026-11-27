@@ -58,6 +58,7 @@ export function betDataReport(record, frames) {
   return {
     format: 'bet-arena/bet_data', version: 1, sessionId: record.sessionId, roundNumber: record.roundNumber,
     bet_log: record.bet_log, battle_data: record.battle_data,
+    ...(record.sim ? { sim: record.sim } : {}),
     battle_log: record.log ? { ...record.log, barracks: barracksDisplayData(record.battle_data?.round.loadout), frames } : null,
   };
 }
