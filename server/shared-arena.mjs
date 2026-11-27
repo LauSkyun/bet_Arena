@@ -21,7 +21,9 @@ export function normalizeName(value) {
   return { name, key: name.toLowerCase().normalize('NFKC') };
 }
 
-export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {}) {
+export function openArena(path, { clock = Date.now, durations, seed, gmKey, gmUsers = [] } = {}) {
+  // 白名单用与账号相同的规范化规则，便于服务端用当前登录身份比对。
+  const gmKeys = new Set(gmUsers.map((name) => normalizeName(name)?.key).filter(Boolean));
   const db = new DatabaseSync(path, { timeout: 5000 });
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -207,6 +209,36 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     return typeof token === 'string' ? loginLookup.get(token, now) : null;
   }
 
+  function isGm(account) {
+    return Boolean(account && gmKeys.has(account.name_key));
+  }
+
+  // 读管理面板：每次都用当前登录身份校验白名单，普通账号只读、未登录无身份。
+  function gmPanel(token) {
+    return transaction((now) => {
+      const account = accountFor(token, now);
+      if (!account) return { signedIn: false, allowed: false, gmConfig: null };
+      return { signedIn: true, allowed: isGm(account), account: { uid: account.uid, name: account.name },
+        gmConfig: parse(load.get())?.gmConfig ?? defaultGmConfig };
+    });
+  }
+
+  // 写设置：身份必须是白名单账号；保留原有配置校验与下一轮生效口径。
+  function configureAs(token, value) {
+    return transaction((now) => {
+      const account = accountFor(token, now);
+      if (!account) return { error: '请先输入试玩用户名。' };
+      if (!isGm(account)) return { error: '当前账号无修改 GM 设置的权限。' };
+      const config = validateGmConfig(value);
+      if (!config) return { error: '配置不合法：结算档位、开关、人数与金额范围需符合要求。' };
+      const state = parse(load.get());
+      const settlementRules = config.settlementMode === playerPoolRules ? playerPoolRules : undefined;
+      const patch = { gmConfig: config, ...(settlementRules === undefined ? { settlementRules: undefined } : { settlementRules }) };
+      save.run(JSON.stringify({ ...state, ...patch, balance: 0 }));
+      return { gmConfig: config, roundNumber: state.round.number + 1 };
+    });
+  }
+
   function spectatorResult(result, balance) {
     const personal = { ...result, stakes: emptyStakes, stake: 0, credit: 0, net: 0, balanceAfter: balance, receipts: [] };
     // 观战者不投入：个人本金与分成为 0，公共奖池口径仍保留供回查。
@@ -279,6 +311,8 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
       });
     },
     gmConfig: () => parse(load.get())?.gmConfig ?? defaultGmConfig,
+    gmPanel,
+    configureAs,
     state: (token) => authorized(token, payload),
     bet: (token, request) => authorized(token, (state, account, now) => {
       const { uid } = account;
