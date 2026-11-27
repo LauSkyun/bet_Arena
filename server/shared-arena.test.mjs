@@ -146,7 +146,7 @@ test('older SQLite rows keep receipts and rejections with truthful missing times
 
 test('new rounds use the player prize pool: two accounts get 195, one account both sides nets -5', () => {
   let now = 100_000;
-  const options = { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } };
+  const options = { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 };
   const arena = openArena(':memory:', options);
   try {
     const a = arena.login('Pool A');
@@ -216,7 +216,7 @@ test('new rounds seal player-stake pool rates; single side shows pending (null r
 
 test('spectators see zero personal principal and share; refund keeps refund with zero share', () => {
   let now = 100_000;
-  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 });
   try {
     const a = arena.login('Detail A');
     const b = arena.login('Detail B');

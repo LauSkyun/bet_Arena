@@ -19,7 +19,7 @@ export function normalizeName(value) {
   return { name, key: name.toLowerCase().normalize('NFKC') };
 }
 
-export function openArena(path, { clock = Date.now, durations } = {}) {
+export function openArena(path, { clock = Date.now, durations, seed } = {}) {
   const db = new DatabaseSync(path, { timeout: 5000 });
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -183,7 +183,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   transaction((now) => {
     const existing = load.get();
     if (!existing) {
-      const state = newSession(randomUUID(), now, undefined, undefined, durations, undefined, groundProfile, undefined, playerPoolRules);
+      const state = newSession(randomUUID(), now, undefined, seed, durations, undefined, groundProfile, undefined, playerPoolRules);
       db.prepare('INSERT OR IGNORE INTO arena VALUES (1, ?)').run(JSON.stringify({ ...state, balance: 0 }));
     } else {
       // 旧库升级：本轮保持旧口径，只把会话级规则设为 2，让下一次新建轮次启用奖池。
