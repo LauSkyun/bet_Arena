@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { applyDueBots, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
 import { battleDataFor, battleDataReport } from '../prototype-playtest/battle-data.mjs';
 import { betting, confirmBet, maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
+import { winningCredit } from '../prototype-playtest/returns.mjs';
 import { groundProfile } from '../prototype-playtest/profiles.mjs';
 import { advance, newSession, timeline } from '../prototype-playtest/round.mjs';
 import { betDataReport, newRoundArchive, recordBattleFrames, recoverBetEntries, saveBattleSnapshot } from '../prototype-playtest/round-archive.mjs';
@@ -97,9 +98,10 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     });
     const bots = roundBotBets.all(round.number).map((row) => {
       const { receipt } = parse(row);
+      // 陪练是模拟参与者：公共下载保留来源/金额/时点/效果，但不附带个人回执对象。
       return { source: 'bot', requestId: row.request_id, side: row.side, amount: row.amount, requestedRoundNumber: round.number,
         elapsedMs: Math.max(0, row.confirmed_at - round.startedAt), accepted: Boolean(receipt), error: null,
-        receipt, effects: receipt?.effects ?? [] };
+        effects: receipt?.effects ?? [] };
     });
     const entries = [...system, ...player, ...bots].sort((a, b) => (a.elapsedMs ?? Infinity) - (b.elapsedMs ?? Infinity));
     return { version: 1, entries, complete: entries.every(({ elapsedMs, effects }) => elapsedMs !== null && effects !== null) };
@@ -136,13 +138,19 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     for (const row of botRows) {
       accounts.push({ uid: row.request_id, red: row.side === 'red' ? row.amount : 0, blue: row.side === 'blue' ? row.amount : 0 });
     }
-    const poolResult = round.snapshot?.settlementRules === playerPoolRules
-      ? settlePlayerPool(accounts, round.result.winner) : null;
+    const isPool = round.snapshot?.settlementRules === playerPoolRules;
+    const poolResult = isPool ? settlePlayerPool(accounts, round.result.winner) : null;
+    const winner = round.result.winner;
+    const rates = round.snapshot?.rates;
     // 陪练赢款只在模拟侧入账，不写入任何真人余额或历史。
-    const sim = botRows.map((row) => ({
-      requestId: row.request_id, side: row.side, amount: row.amount,
-      credit: poolResult ? poolResult.byUid.get(row.request_id) ?? 0 : 0,
-    }));
+    // 奖池档按奖池分配；旧倍率档按封盘冻结倍率核入账，平局/作废退本金。
+    const sim = botRows.map((row) => {
+      let credit;
+      if (isPool) credit = poolResult.byUid.get(row.request_id) ?? 0;
+      else if (winner === 'draw' || winner === 'void') credit = row.amount;
+      else credit = row.side === winner && rates?.[winner] != null ? winningCredit(row.amount, rates[winner]) : 0;
+      return { requestId: row.request_id, side: row.side, amount: row.amount, credit };
+    });
     const snapshot = newRoundArchive(state, round.number, round.startedAt);
     saveBattleSnapshot(snapshot, state, round);
     const frames = [];
@@ -161,27 +169,24 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     }
   }
 
-  function applyBots(now) {
-    const current = parse(load.get());
-    // 封盘前的到期事件全部处理；已封盘不再补单。dueNow 封顶到锁定时刻。
-    const lock = current.round.startedAt + current.round.durations.betMs;
-    const dueNow = Math.min(now, lock);
-    const config = current.round.gmConfig ?? current.gmConfig;
-    const { state: updated, applied } = applyDueBots(current, config, dueNow,
-      (round, requestId) => Boolean(hasBotBet.get(round, requestId)),
-      (round, requestId, side, amount, confirmedAt, receipt) =>
-        storeBotBet.run(round, requestId, side, amount, confirmedAt, JSON.stringify({ receipt })));
-    if (applied.length) save.run(JSON.stringify({ ...updated, balance: 0 }));
-    return updated;
+  // 每轮封盘前按该轮配置处理到期的陪练计划；计划事件全部落库后再封盘，封盘后禁止补单。
+  function prepareRound(round, lock, now) {
+    const config = round.gmConfig ?? parse(load.get())?.gmConfig;
+    const state = { seed: parse(load.get())?.seed, round };
+    const { state: updated } = applyDueBots(state, config, Math.min(now, lock),
+      (no, requestId) => Boolean(hasBotBet.get(no, requestId)),
+      (no, requestId, side, amount, confirmedAt, receipt) =>
+        storeBotBet.run(no, requestId, side, amount, confirmedAt, JSON.stringify({ receipt })));
+    return updated.round;
   }
 
   function tick(now) {
-    applyBots(now);
     const current = parse(load.get());
     const observed = new Map();
     const withReferenceEffects = (round) => observed.has(round.number)
       ? { ...round, referenceEffects: { ...round.referenceEffects, ...observed.get(round.number) } } : round;
     const moved = advance(current, now, {
+      prepareRound,
       reference(round, _event, index) {
         if (!observed.has(round.number)) observed.set(round.number, {});
         observed.get(round.number)[index] = round.lastEffects;
@@ -229,12 +234,12 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
       const state = newSession(randomUUID(), now, undefined, seed, durations, undefined, groundProfile, undefined, playerPoolRules, defaultGmConfig);
       db.prepare('INSERT OR IGNORE INTO arena VALUES (1, ?)').run(JSON.stringify({ ...state, balance: 0 }));
     } else {
-      // 旧库升级：本轮保持旧口径，只把会话级规则设为 2，让下一次新建轮次启用奖池。
+      // 旧库升级：仅真正没有 gmConfig 的旧库补默认并启用规则 2；
+      // 已有 gmConfig 的库尊重 GM 设定的 settlementMode（旧倍率即 settlementRules 缺省），重启不得翻转。
       const state = parse(existing);
-      const patch = {};
-      if (state.settlementRules !== playerPoolRules) patch.settlementRules = playerPoolRules;
-      if (!state.gmConfig) patch.gmConfig = defaultGmConfig;
-      if (Object.keys(patch).length) save.run(JSON.stringify({ ...state, ...patch }));
+      if (!state.gmConfig) {
+        save.run(JSON.stringify({ ...state, gmConfig: defaultGmConfig, settlementRules: playerPoolRules }));
+      }
     }
   });
 

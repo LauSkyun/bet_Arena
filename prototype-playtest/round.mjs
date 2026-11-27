@@ -59,8 +59,13 @@ export function timeline(round) {
 export function advance(session, now, observe) {
   let lastFinished = null;
   for (let processed = 0; processed < catchUpBatch; processed++) {
-    const round = session.round;
+    let round = session.round;
     const lock = round.startedAt + round.durations.betMs;
+    // 每轮封盘前先让调用方处理该轮到期的计划事件（如 GM 陪练），逐轮处理再封盘。
+    if (observe?.prepareRound) {
+      const prepared = observe.prepareRound(round, lock, now);
+      if (prepared && prepared !== round) { round = prepared; session = { ...session, round }; }
+    }
     const sealed = advanceBetting(round, referenceForRound(round, session.reference), lock, now, observe?.reference);
     if (sealed !== round) session = { ...session, round: sealed };
     if (now < lock + lockMs) break;

@@ -1,7 +1,7 @@
 // dev GM 多人下注模拟的纯逻辑：配置校验、按轮确定性计划、到期事件应用。
 // 陪练走 confirmBet 同一套 invest/封盘路径，但不建账号、不扣真人余额、不落真人历史。
 
-import { confirmBet } from '../prototype-playtest/betting.mjs';
+import { confirmBet, maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
 import { playerPoolRules } from '../prototype-playtest/settlement-pool.mjs';
 
 // settlementMode: 2 = 奖池规则（playerPoolRules），1 = 旧倍率；默认奖池，模拟默认关。
@@ -68,6 +68,9 @@ export function applyDueBots(state, config, dueNow, hasStored, store) {
     const confirmedAt = state.round.startedAt + planned.elapsedMs;
     if (confirmedAt > dueNow) continue;
     if (hasStored(state.round.number, planned.requestId)) continue;
+    // 与真人在 arena.bet 的公共总投闸门一致：陪练也不能把本轮总投推过精确计算上限。
+    const total = updated.round.teams.red.total + updated.round.teams.blue.total;
+    if (planned.amount > maxReferenceThreshold - total) continue;
     const synthetic = { ...updated, id: planned.requestId, balance: Number.MAX_SAFE_INTEGER, round: { ...updated.round } };
     const result = confirmBet(synthetic, confirmedAt, {
       sessionId: planned.requestId, roundNumber: state.round.number,

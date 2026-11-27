@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { timeline } from '../prototype-playtest/round.mjs';
-import { botPlan, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
+import { applyDueBots, botPlan, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
+import { maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
 import { openArena } from './shared-arena.mjs';
 
 const config = { settlementMode: 2, botEnabled: true, botCount: 3, minAmount: 100, maxAmount: 100 };
@@ -120,4 +121,132 @@ test('restart across seal processes all pre-seal bot events once, no backfill af
   const db3 = new DatabaseSync(file);
   assert.equal(db3.prepare('SELECT COUNT(*) c FROM bot_bets').get().c, 3);
   db3.close();
+});
+
+
+test('legacy settlement mode survives reopen; next new round keeps legacy, not flipped to pool', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'gm-legacy-'));
+  const file = join(dir, 'arena.sqlite');
+  const nowRef = { value: 100_000 };
+  const options = opts(nowRef);
+  let arena = openArena(file, options);
+  t.after(() => { try { arena.close(); } catch {} rmSync(dir, { recursive: true, force: true }); });
+  const legacy = { settlementMode: 1, botEnabled: true, botCount: 3, minAmount: 100, maxAmount: 100 };
+  arena.configure('gm-secret', legacy);
+  const human = arena.login('Legacy');
+  const first = arena.state(human.token).session.round;
+  nowRef.value = timeline(first).next + 1;
+  arena.tick();
+  const second = arena.state(human.token).session.round;
+  assert.equal(second.gmConfig.settlementMode, 1);
+  assert.equal(second.settlementRules, undefined);
+  // reopen and advance into round 3: must still be legacy
+  nowRef.value = timeline(second).next + 1;
+  arena.close();
+  arena = openArena(file, options);
+  const third = arena.state(human.token).session.round;
+  assert.equal(third.gmConfig.settlementMode, 1);
+  assert.equal(third.settlementRules, undefined, 'reopen must not flip GM-set legacy to pool');
+});
+
+test('legacy mode credits winning bots by frozen multiplier and refunds on draw', () => {
+  const nowRef = { value: 100_000 };
+  const arena = openArena(':memory:', opts(nowRef));
+  try {
+    const legacy = { settlementMode: 1, botEnabled: true, botCount: 3, minAmount: 100, maxAmount: 100 };
+    arena.configure('gm-secret', legacy);
+    const human = arena.login('Legacy Bot');
+    const first = arena.state(human.token).session.round;
+    nowRef.value = timeline(first).next + 1;
+    arena.tick();
+    const r2 = arena.state(human.token).session.round;
+    arena.bet(human.token, { sessionId: human.account.uid, roundNumber: 2, side: 'blue', requestId: 'h', amount: 93 });
+    const lock = timeline(r2).lock;
+    nowRef.value = lock + 1;
+    arena.tick();
+    const sealed = arena.state(human.token).session.round;
+    const rates = sealed.snapshot.rates;
+    nowRef.value = timeline(sealed).finish;
+    const result = arena.state(human.token).session.round.result;
+    const sim = arena.archive(human.token, 2).archive.sim;
+    assert.equal(result.settlementRules, undefined);
+    for (const bot of sim) {
+      if (result.winner === 'draw' || result.winner === 'void') {
+        assert.equal(bot.credit, bot.amount, 'draw/void refunds each bot principal');
+      } else if (bot.side === result.winner) {
+        assert.equal(bot.credit, Math.floor(bot.amount * rates[bot.side] / 100), 'winning bot uses frozen multiplier');
+      } else {
+        assert.equal(bot.credit, 0);
+      }
+    }
+  } finally { arena.close(); }
+});
+
+test('cross-round catch-up applies each round bots before sealing (continuous == jump)', () => {
+  function run(jump) {
+    const nowRef = { value: 100_000 };
+    const arena = openArena(':memory:', opts(nowRef));
+    try {
+      arena.configure('gm-secret', config);
+      const human = arena.login('Catchup');
+      const first = arena.state(human.token).session.round;
+      nowRef.value = timeline(first).next + 1;
+      arena.tick();
+      const r2 = arena.state(human.token).session.round;
+      if (jump) {
+        nowRef.value = r2.startedAt + 80_000;
+        arena.tick();
+      } else {
+        for (const t of [timeline(r2).lock + 1, timeline(r2).finish + 1, timeline(r2).next + 1]) { nowRef.value = t; arena.tick(); }
+        nowRef.value = r2.startedAt + 80_000;
+        arena.tick();
+      }
+      const st = arena.state(human.token).session;
+      const arch3 = arena.archive(human.token, st.round.number).archive;
+      return { number: st.round.number, sealed: Boolean(st.round.snapshot), bots: arch3 ? arch3.bet_log.entries.filter((e) => e.source === 'bot').length : -1 };
+    } finally { arena.close(); }
+  }
+  const continuous = run(false);
+  const jump = run(true);
+  assert.equal(continuous.sealed, true);
+  assert.deepEqual(jump, continuous, 'jump path must apply the same per-round bot events');
+  assert.equal(jump.bots, 3);
+});
+
+test('bot public entries carry no personal receipt', () => {
+  const nowRef = { value: 100_000 };
+  const arena = openArena(':memory:', opts(nowRef));
+  try {
+    arena.configure('gm-secret', config);
+    const human = arena.login('Receipt');
+    const first = arena.state(human.token).session.round;
+    nowRef.value = timeline(first).next + 1;
+    arena.tick();
+    const r2 = arena.state(human.token).session.round;
+    arena.bet(human.token, { sessionId: human.account.uid, roundNumber: 2, side: 'red', requestId: 'h', amount: 100 });
+    nowRef.value = timeline(r2).lock + 1;
+    arena.tick();
+    const entries = arena.archive(human.token, 2).archive.bet_log.entries;
+    const bots = entries.filter((e) => e.source === 'bot');
+    assert.equal(bots.length, 3);
+    assert.ok(bots.every((e) => !('receipt' in e) && e.effects && e.elapsedMs != null && e.amount === 100));
+    assert.ok(entries.filter((e) => e.source === 'player').every((e) => 'receipt' in e));
+  } finally { arena.close(); }
+});
+
+
+test('bots obey the public total-investment gate (maxReferenceThreshold)', () => {
+  // Build a state whose team total is within one bot amount of the cap; the bot must be skipped.
+  const cfgBig = { settlementMode: 2, botEnabled: true, botCount: 1, minAmount: 100, maxAmount: 100 };
+  const round = {
+    number: 2, snapshot: null, startedAt: 0, durations: { betMs: 10_000 },
+    teams: { red: { total: maxReferenceThreshold - 50, player: 0, system: maxReferenceThreshold - 50, roster: {} },
+              blue: { total: 0, player: 0, system: 0, roster: {} } },
+  };
+  const stored = [];
+  const state = { seed: 42, round };
+  const { applied } = applyDueBots(state, cfgBig, 10_000, () => false,
+    (no, id, side, amount, at, receipt) => stored.push(id));
+  assert.equal(applied.length, 0, 'bot bet over the public total gate is skipped');
+  assert.equal(stored.length, 0);
 });
