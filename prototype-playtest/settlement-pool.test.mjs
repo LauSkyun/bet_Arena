@@ -62,3 +62,32 @@ test('rake rounds down', () => {
   assert.equal(detail.rake, 0);
   assert.equal(detail.distributable, 3);
 });
+
+
+test('refund detail keeps refund amount with zero principal and share', () => {
+  // mirror settlement.mjs pool-detail assembly for a single-side refund
+  const accounts = [{ uid: 'solo', red: 100, blue: 0 }];
+  for (const winner of ['red', 'draw']) {
+    const { byUid, detail } = settlePlayerPool(accounts, winner);
+    const credit = byUid.get('solo');
+    const refunded = winner === 'draw' || detail.winnerPool === 0 || detail.loserPool === 0;
+    const principal = refunded ? 0 : accounts[0][winner];
+    const share = refunded ? 0 : Math.max(0, credit - principal);
+    const refund = refunded ? credit : 0;
+    assert.equal(refund, 100);
+    assert.equal(principal, 0);
+    assert.equal(share, 0);
+  }
+});
+
+test('pool rates use player stakes only and go null on a single side', () => {
+  const both = { red: { player: 100 }, blue: { player: 100 } };
+  // poolRatesFor is imported lazily below to keep the pure-module contract clear
+  return import('./settlement-pool.mjs').then(({ poolRatesFor, poolPending }) => {
+    assert.deepEqual(poolRatesFor(both), { red: 195, blue: 195 });
+    assert.equal(poolPending(both), false);
+    const one = { red: { player: 100 }, blue: { player: 0 } };
+    assert.deepEqual(poolRatesFor(one), { red: null, blue: null });
+    assert.equal(poolPending(one), true);
+  });
+});

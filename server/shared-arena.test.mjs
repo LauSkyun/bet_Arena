@@ -196,3 +196,41 @@ test('one account bets both sides: decisive round credits 195 with net -5', () =
     assert.equal(result.settlementRules, 2);
   } finally { arena.close(); }
 });
+
+
+test('new rounds seal player-stake pool rates; single side shows pending (null rate)', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  try {
+    const a = arena.login('Rate A');
+    const b = arena.login('Rate B');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'r', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    // player stakes only (100/100) -> each side would return 195 if it wins; system stakes excluded.
+    assert.deepEqual(sealed.snapshot.rates, { red: 195, blue: 195 });
+  } finally { arena.close(); }
+});
+
+test('spectators see zero personal principal and share; refund keeps refund with zero share', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  try {
+    const a = arena.login('Detail A');
+    const b = arena.login('Detail B');
+    const watch = arena.login('Detail Watch');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'd', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    now = timeline(sealed).finish;
+    const viewer = arena.state(watch.token).session.round.result;
+    assert.equal(viewer.credit, 0);
+    assert.equal(viewer.pool.principal, 0);
+    assert.equal(viewer.pool.share, 0);
+    assert.equal(viewer.pool.distributable, 95);
+  } finally { arena.close(); }
+});

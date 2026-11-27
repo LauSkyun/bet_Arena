@@ -18,8 +18,10 @@ export function settleSession(session, battleResult, finishedAt, now, options = 
     const settled = settlePlayerPool(accounts, winner);
     credit = settled.byUid.get(uid) ?? 0;
     const personal = accounts.find((account) => account.uid === uid) ?? { red: 0, blue: 0 };
-    const principal = winner === 'red' ? personal.red : winner === 'blue' ? personal.blue : 0;
-    pool = { ...settled.detail, principal, share: Math.max(0, credit - principal) };
+    // 平局/作废/单边成池失败走退款：保留退款额，本金与分成记 0，不把退款误记为分成。
+    const refunded = winner === 'draw' || winner === 'void' || settled.detail.winnerPool === 0 || settled.detail.loserPool === 0;
+    const principal = refunded ? 0 : winner === 'red' ? personal.red : personal.blue;
+    pool = { ...settled.detail, principal, share: refunded ? 0 : Math.max(0, credit - principal), refund: refunded ? credit : 0 };
   } else if (winner === 'draw' || winner === 'void') credit = stake;
   else credit = winningCredit(stakes[winner], rates[winner]);
 

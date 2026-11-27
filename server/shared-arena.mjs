@@ -157,7 +157,10 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   }
 
   function spectatorResult(result, balance) {
-    return { ...result, stakes: emptyStakes, stake: 0, credit: 0, net: 0, balanceAfter: balance, receipts: [] };
+    const personal = { ...result, stakes: emptyStakes, stake: 0, credit: 0, net: 0, balanceAfter: balance, receipts: [] };
+    // 观战者不投入：个人本金与分成为 0，公共奖池口径仍保留供回查。
+    if (personal.pool) personal.pool = { ...personal.pool, principal: 0, share: 0, refund: 0 };
+    return personal;
   }
 
   function payload(state, account, now) {
@@ -178,8 +181,17 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   }
 
   transaction((now) => {
-    const state = newSession(randomUUID(), now, undefined, undefined, durations, undefined, groundProfile, undefined, playerPoolRules);
-    db.prepare('INSERT OR IGNORE INTO arena VALUES (1, ?)').run(JSON.stringify({ ...state, balance: 0 }));
+    const existing = load.get();
+    if (!existing) {
+      const state = newSession(randomUUID(), now, undefined, undefined, durations, undefined, groundProfile, undefined, playerPoolRules);
+      db.prepare('INSERT OR IGNORE INTO arena VALUES (1, ?)').run(JSON.stringify({ ...state, balance: 0 }));
+    } else {
+      // 旧库升级：本轮保持旧口径，只把会话级规则设为 2，让下一次新建轮次启用奖池。
+      const state = parse(existing);
+      if (state.settlementRules !== playerPoolRules) {
+        save.run(JSON.stringify({ ...state, settlementRules: playerPoolRules }));
+      }
+    }
   });
 
   return {

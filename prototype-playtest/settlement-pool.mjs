@@ -54,10 +54,20 @@ export function settlePlayerPool(accounts, winner) {
   return { byUid, detail };
 }
 
-// 单账号在指定胜方下的奖池明细（供结果里的 pool 字段）。
-export function personalPoolDetail(detail, winner, red, blue) {
-  const winSide = winner === 'red' ? 'red' : 'blue';
-  const principal = winSide === 'red' ? red : blue;
-  // 退款场景没有分成；正常场景分成 = 入账 − 本金，由调用方按 byUid 结果补齐 share。
-  return { ...detail, principal };
+// 下注/封盘展示用的奖池回报率（含本金），只按玩家实扣计算，系统投点不计入。
+// 若任一边没有玩家实扣则无法成池，返回 null，由界面显示「待成池／退款」。
+export function poolRatesFor(teams) {
+  const red = teams.red?.player ?? 0;
+  const blue = teams.blue?.player ?? 0;
+  const rate = (own, other) => {
+    if (own <= 0 || other <= 0) return null;
+    const rake = Number((BigInt(other) * rakePercent) / 100n);
+    const distributable = other - rake;
+    return Number(((BigInt(own) + BigInt(distributable)) * 100n) / BigInt(own));
+  };
+  return { red: rate(red, blue), blue: rate(blue, red) };
+}
+
+export function poolPending(teams) {
+  return (teams.red?.player ?? 0) <= 0 || (teams.blue?.player ?? 0) <= 0;
 }
