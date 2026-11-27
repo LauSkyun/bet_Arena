@@ -352,8 +352,15 @@ function render(session, now) {
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;
-    element('result-rate').hidden = !appliedRate;
-    if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
+    const isPlayerPool = round.result.settlementRules === 2 && round.result.pool;
+    element('result-rate').hidden = !appliedRate && !isPlayerPool;
+    if (isPlayerPool) {
+      const pool = round.result.pool;
+      const detail = pool.rake > 0 || pool.distributable > 0
+        ? `奖池 · 胜方 ${pool.winnerPool}／败方 ${pool.loserPool}，抽成 ${pool.rake}，分配 ${pool.distributable}；本人本金 ${pool.principal}＋分成 ${pool.share}`
+        : '奖池 · 单边或无赛果，已退回本人实扣';
+      element('result-rate').textContent = detail;
+    } else if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
     element('result-net').textContent = `本轮净变化 ${signed(net)} 点`;
     const change = stake && (winner === 'void' || winner === 'draw') ? '退回投入' : '本次入账';
     element('result-credit').textContent = `${change} ${credit} 点 · 结算后余额 ${balanceAfter} 点`;

@@ -142,3 +142,57 @@ test('older SQLite rows keep receipts and rejections with truthful missing times
   assert.match(log.entries[1].error, /不足/);
   assert.equal(arena.state(token).session.balance, 9800);
 });
+
+
+test('new rounds use the player prize pool: two accounts get 195, one account both sides nets -5', () => {
+  let now = 100_000;
+  const options = { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } };
+  const arena = openArena(':memory:', options);
+  try {
+    const a = arena.login('Pool A');
+    const b = arena.login('Pool B');
+    const req = (acct, side, amount, id = 'w') => ({ sessionId: acct.account.uid, roundNumber: 1, side, amount, requestId: id });
+    arena.bet(a.token, req(a, 'red', 100));
+    arena.bet(b.token, req(b, 'blue', 100));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    assert.equal(sealed.snapshot.settlementRules, 2);
+    now = timeline(sealed).finish;
+    const ra = arena.state(a.token).session.round.result;
+    const rb = arena.state(b.token).session.round.result;
+    assert.equal(ra.settlementRules, 2);
+    assert.deepEqual([ra.pool.red, ra.pool.blue, ra.pool.rake, ra.pool.distributable], [100, 100, 5, 95]);
+    const winner = ra.winner;
+    assert.ok(['red', 'blue'].includes(winner), `decisive winner expected, got ${winner}`);
+    const winnerCredit = winner === 'red' ? ra.credit : rb.credit;
+    const loserCredit = winner === 'red' ? rb.credit : ra.credit;
+    assert.equal(winnerCredit, 195);
+    assert.equal(loserCredit, 0);
+    // history carries the pool rule detail.
+    const entry = arena.history(a.token).entries[0];
+    assert.equal(entry.settlementRules, 2);
+    assert.equal(entry.pool.rake, 5);
+  } finally { arena.close(); }
+});
+
+test('one account bets both sides: decisive round credits 195 with net -5', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  try {
+    const solo = arena.login('Solo');
+    const req = (side, id) => ({ sessionId: solo.account.uid, roundNumber: 1, side, amount: 100, requestId: id });
+    arena.bet(solo.token, req('red', 'r'));
+    arena.bet(solo.token, req('blue', 'b'));
+    now = timeline(arena.state(solo.token).session.round).lock + 1;
+    const sealed = arena.state(solo.token).session.round;
+    now = timeline(sealed).finish;
+    const result = arena.state(solo.token).session.round.result;
+    if (result.winner === 'draw' || result.winner === 'void') {
+      assert.equal(result.credit, 200);
+    } else {
+      assert.equal(result.credit, 195);
+      assert.equal(result.net, -5);
+    }
+    assert.equal(result.settlementRules, 2);
+  } finally { arena.close(); }
+});

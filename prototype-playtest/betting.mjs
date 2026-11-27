@@ -78,6 +78,7 @@ export function advanceBetting(round, reference, lockAt, now, observeReference) 
     battle: { red: battleLoadout(updated.teams.red.roster, updated.board, updated.combatRules), blue: battleLoadout(updated.teams.blue.roster, updated.board, updated.combatRules) },
     receipts: updated.receipts,
     lockedAt: lockAt,
+    ...(updated.settlementRules === undefined ? {} : { settlementRules: updated.settlementRules }),
   };
   return { ...updated, snapshot };
 }

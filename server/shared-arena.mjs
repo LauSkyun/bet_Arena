@@ -6,6 +6,7 @@ import { groundProfile } from '../prototype-playtest/profiles.mjs';
 import { advance, newSession, timeline } from '../prototype-playtest/round.mjs';
 import { betDataReport, newRoundArchive, recordBattleFrames, recoverBetEntries, saveBattleSnapshot } from '../prototype-playtest/round-archive.mjs';
 import { settleSession } from '../prototype-playtest/settlement.mjs';
+import { playerPoolRules } from '../prototype-playtest/settlement-pool.mjs';
 
 const day = 86_400_000;
 const parse = (row) => row ? JSON.parse(row.data) : null;
@@ -107,6 +108,13 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
       byAccount.get(row.uid).push(receipt);
     }
     if (!byAccount.size) return;
+    // 奖池按全体账号已确认实扣计算，传给每个账号的结算共用同一份口径。
+    const accounts = [];
+    for (const [uid, receipts] of byAccount) {
+      const stakes = { red: 0, blue: 0 };
+      for (const { side, amount } of receipts) stakes[side] += amount;
+      accounts.push({ uid, red: stakes.red, blue: stakes.blue });
+    }
     const snapshot = newRoundArchive(state, round.number, round.startedAt);
     saveBattleSnapshot(snapshot, state, round);
     const frames = [];
@@ -119,7 +127,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
     for (const [uid, receipts] of byAccount) {
       const { balance } = balanceFor.get(uid);
       const personal = personalRound({ ...round, result: null }, receipts);
-      const settled = settleSession({ balance, round: personal }, round.result, round.result.settledAt, round.result.settledAt);
+      const settled = settleSession({ balance, round: personal }, round.result, round.result.settledAt, round.result.settledAt, { accounts, uid });
       setHistory.run(uid, round.number, JSON.stringify(settled.round.result));
       setBalance.run(settled.balance, uid);
     }
@@ -170,7 +178,7 @@ export function openArena(path, { clock = Date.now, durations } = {}) {
   }
 
   transaction((now) => {
-    const state = newSession(randomUUID(), now, undefined, undefined, durations, undefined, groundProfile);
+    const state = newSession(randomUUID(), now, undefined, undefined, durations, undefined, groundProfile, undefined, playerPoolRules);
     db.prepare('INSERT OR IGNORE INTO arena VALUES (1, ?)').run(JSON.stringify({ ...state, balance: 0 }));
   });
 
