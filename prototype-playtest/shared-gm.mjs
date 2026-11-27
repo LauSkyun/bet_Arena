@@ -6,6 +6,13 @@ const form = element('gm-form');
 const guest = element('guest');
 const readonly = element('readonly');
 
+function summary(config) {
+  if (!config) return '';
+  const mode = config.settlementMode === 2 ? '奖池（只计玩家实扣）' : '旧倍率';
+  const bots = config.botEnabled ? '开启' : '关闭';
+  return `当前配置（只读）· 结算模式：${mode}；模拟多人下注：${bots}；陪练人数：${config.botCount ?? 3}；每人金额：${config.minAmount ?? 10}–${config.maxAmount ?? 200} 点。下一新轮生效。`;
+}
+
 function fill(config) {
   if (!config) return;
   const mode = String(config.settlementMode ?? 2);
@@ -18,7 +25,6 @@ function fill(config) {
 }
 
 async function refresh() {
-  notice('');
   const result = await arenaRequest('gm/config', undefined, { allowGuest: true });
   guest.hidden = result.signedIn;
   readonly.hidden = !result.signedIn || result.allowed;
@@ -28,9 +34,9 @@ async function refresh() {
     fill(result.gmConfig);
     element('current').hidden = true;
   } else if (result.signedIn) {
-    // 只读账号：把当前配置以可读文本展示，不提供表单。
+    // 只读账号：中文摘要，不展示原始 JSON、不提供表单。
     element('current').hidden = false;
-    element('current').textContent = JSON.stringify(result.gmConfig, null, 2);
+    element('current').textContent = summary(result.gmConfig);
   } else {
     element('current').hidden = true;
   }
@@ -48,8 +54,9 @@ form.addEventListener('submit', async (event) => {
   };
   try {
     const result = await arenaRequest('gm/config', value);
-    notice(`已保存，下一轮（第 ${result.roundNumber} 轮）生效。`);
     await refresh();
+    // 保存回执在 refresh 之后写入，避免被刷新流程清空，稳定保留成功提示与生效轮号。
+    notice(`已保存，下一轮（第 ${result.roundNumber} 轮）生效。`);
   } catch (error) { notice(error.message); }
 });
 
