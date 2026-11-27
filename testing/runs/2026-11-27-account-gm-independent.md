@@ -1,6 +1,6 @@
 # 账号 GM 面板独立验收
 
-2026-11-27，功能卡 #58。[需求 v0.2](../../requirements/11-gm-panel/requirement.md) · [GM57 XMind](../cases/gm-multiplayer-2026-11-27.xmind) · [账号双标签复验](2026-11-25-shared-arena-tab-session-independent.md) · [功能知识](../../knowledge/features/08-shared-arena.md#账号-gm-设置)
+2026-11-27，功能卡 #58。[需求 v0.2](../../requirements/11-gm-panel/requirement.md) · [面板 XMind](../cases/account-gm-2026-11-27.xmind) · [GM57 XMind](../cases/gm-multiplayer-2026-11-27.xmind) · [账号双标签复验](2026-11-25-shared-arena-tab-session-independent.md) · [功能知识](../../knowledge/features/08-shared-arena.md#账号-gm-设置)
 
 候选 7bde6a9 验通过后并入 develop 313b487，自动回归 137 项通过。试玩反馈发现直达 GM 页后登录会回到竞技场。v0.2 补验从登录入口回到原面板。使用同一 Edge 实例、隔离 SQLite 和虚构的白名单及普通账号。
 

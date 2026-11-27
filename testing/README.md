@@ -38,4 +38,12 @@
 
 ## GM 多人下注模拟
 
-[需求与复验结果](runs/2026-11-27-gm-multiplayer-independent.md) · [XMind 用例](cases/gm-multiplayer-2026-11-27.xmind) · [账号 GM 面板与直链登录复验](runs/2026-11-27-account-gm-independent.md)
+[需求与复验结果](runs/2026-11-27-gm-multiplayer-independent.md) · [XMind 用例](cases/gm-multiplayer-2026-11-27.xmind)
+
+## 同局多人奖池结算
+
+[需求](../requirements/09-player-pool/requirement.md) · [奖池 XMind](cases/player-pool-2026-11-27.xmind) · [独立验收](runs/2026-11-27-player-pool-independent.md)
+
+## 账号 GM 面板
+
+[需求](../requirements/11-gm-panel/requirement.md) · [面板 XMind](cases/account-gm-2026-11-27.xmind) · [独立验收](runs/2026-11-27-account-gm-independent.md)
