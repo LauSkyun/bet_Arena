@@ -1,14 +1,28 @@
 import { winningCredit } from './returns.mjs';
+import { playerPoolRules, settlePlayerPool } from './settlement-pool.mjs';
 
-export function settleSession(session, battleResult, finishedAt, now) {
+export function settleSession(session, battleResult, finishedAt, now, options = {}) {
   const { round, balance } = session;
   if (round.result || now < finishedAt) return session;
 
   const { roundNumber, stakes, rates, receipts } = round.snapshot;
   const stake = stakes.red + stakes.blue;
   const { winner, scores, damage, decidedBy, fallenBases, endedAtMs } = battleResult;
+  const rules = round.snapshot.settlementRules ?? 1;
   let credit = 0;
-  if (winner === 'draw' || winner === 'void') credit = stake;
+  let pool = null;
+  if (rules === playerPoolRules) {
+    // 奖池按全体玩家已确认实扣计算；匿名版只有本账号一个参与者，账号版由 settleRound 传入全体账号。
+    const accounts = options.accounts ?? [{ uid: options.uid ?? session.id, red: stakes.red, blue: stakes.blue }];
+    const uid = options.uid ?? session.id;
+    const settled = settlePlayerPool(accounts, winner);
+    credit = settled.byUid.get(uid) ?? 0;
+    const personal = accounts.find((account) => account.uid === uid) ?? { red: 0, blue: 0 };
+    // 平局/作废/单边成池失败走退款：保留退款额，本金与分成记 0，不把退款误记为分成。
+    const refunded = winner === 'draw' || winner === 'void' || settled.detail.winnerPool === 0 || settled.detail.loserPool === 0;
+    const principal = refunded ? 0 : winner === 'red' ? personal.red : personal.blue;
+    pool = { ...settled.detail, principal, share: refunded ? 0 : Math.max(0, credit - principal), refund: refunded ? credit : 0 };
+  } else if (winner === 'draw' || winner === 'void') credit = stake;
   else credit = winningCredit(stakes[winner], rates[winner]);
 
   const balanceAfter = balance + credit;
@@ -26,6 +40,10 @@ export function settleSession(session, battleResult, finishedAt, now) {
     settledAt: finishedAt,
     receipts,
   };
+  if (rules === playerPoolRules) {
+    result.settlementRules = playerPoolRules;
+    result.pool = pool;
+  }
   if (decidedBy) result.decidedBy = decidedBy;
   if (damage) result.damage = damage;
   if (fallenBases) Object.assign(result, { fallenBases, endedAtMs });

@@ -1,4 +1,5 @@
 import { returnsFor } from './returns.mjs';
+import { playerPoolRules, poolRatesFor } from './settlement-pool.mjs';
 import { battleLoadout, enhanceRoster, isRosterFull, newRoster } from './roster.mjs';
 
 export const betting = Object.freeze({ initialBalance: 10_000, threshold: 100 });
@@ -73,11 +74,12 @@ export function advanceBetting(round, reference, lockAt, now, observeReference) 
   const snapshot = {
     roundNumber: updated.number,
     stakes: stakesFor(updated.teams),
-    rates: returnsFor(updated.teams),
+    rates: updated.settlementRules === playerPoolRules ? poolRatesFor(updated.teams) : returnsFor(updated.teams),
     teams: updated.teams,
     battle: { red: battleLoadout(updated.teams.red.roster, updated.board, updated.combatRules), blue: battleLoadout(updated.teams.blue.roster, updated.board, updated.combatRules) },
     receipts: updated.receipts,
     lockedAt: lockAt,
+    ...(updated.settlementRules === undefined ? {} : { settlementRules: updated.settlementRules }),
   };
   return { ...updated, snapshot };
 }

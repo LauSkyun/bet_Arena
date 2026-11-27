@@ -142,3 +142,120 @@ test('older SQLite rows keep receipts and rejections with truthful missing times
   assert.match(log.entries[1].error, /不足/);
   assert.equal(arena.state(token).session.balance, 9800);
 });
+
+
+test('new rounds use the player prize pool: two accounts get 195, one account both sides nets -5', () => {
+  let now = 100_000;
+  const options = { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 };
+  const arena = openArena(':memory:', options);
+  try {
+    const a = arena.login('Pool A');
+    const b = arena.login('Pool B');
+    const req = (acct, side, amount, id = 'w') => ({ sessionId: acct.account.uid, roundNumber: 1, side, amount, requestId: id });
+    arena.bet(a.token, req(a, 'red', 100));
+    arena.bet(b.token, req(b, 'blue', 100));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    assert.equal(sealed.snapshot.settlementRules, 2);
+    now = timeline(sealed).finish;
+    const ra = arena.state(a.token).session.round.result;
+    const rb = arena.state(b.token).session.round.result;
+    assert.equal(ra.settlementRules, 2);
+    assert.deepEqual([ra.pool.red, ra.pool.blue, ra.pool.rake, ra.pool.distributable], [100, 100, 5, 95]);
+    const winner = ra.winner;
+    assert.ok(['red', 'blue'].includes(winner), `decisive winner expected, got ${winner}`);
+    const winnerCredit = winner === 'red' ? ra.credit : rb.credit;
+    const loserCredit = winner === 'red' ? rb.credit : ra.credit;
+    assert.equal(winnerCredit, 195);
+    assert.equal(loserCredit, 0);
+    // history carries the pool rule detail.
+    const entry = arena.history(a.token).entries[0];
+    assert.equal(entry.settlementRules, 2);
+    assert.equal(entry.pool.rake, 5);
+  } finally { arena.close(); }
+});
+
+test('one account bets both sides: decisive round credits 195 with net -5', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  try {
+    const solo = arena.login('Solo');
+    const req = (side, id) => ({ sessionId: solo.account.uid, roundNumber: 1, side, amount: 100, requestId: id });
+    arena.bet(solo.token, req('red', 'r'));
+    arena.bet(solo.token, req('blue', 'b'));
+    now = timeline(arena.state(solo.token).session.round).lock + 1;
+    const sealed = arena.state(solo.token).session.round;
+    now = timeline(sealed).finish;
+    const result = arena.state(solo.token).session.round.result;
+    if (result.winner === 'draw' || result.winner === 'void') {
+      assert.equal(result.credit, 200);
+    } else {
+      assert.equal(result.credit, 195);
+      assert.equal(result.net, -5);
+    }
+    assert.equal(result.settlementRules, 2);
+  } finally { arena.close(); }
+});
+
+
+test('new rounds seal player-stake pool rates; single side shows pending (null rate)', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 } });
+  try {
+    const a = arena.login('Rate A');
+    const b = arena.login('Rate B');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'r', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    // player stakes only (100/100) -> each side would return 195 if it wins; system stakes excluded.
+    assert.deepEqual(sealed.snapshot.rates, { red: 195, blue: 195 });
+  } finally { arena.close(); }
+});
+
+test('spectators see zero personal principal and share; refund keeps refund with zero share', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 });
+  try {
+    const a = arena.login('Detail A');
+    const b = arena.login('Detail B');
+    const watch = arena.login('Detail Watch');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'd', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    now = timeline(arena.state(a.token).session.round).lock + 1;
+    const sealed = arena.state(a.token).session.round;
+    now = timeline(sealed).finish;
+    const viewer = arena.state(watch.token).session.round.result;
+    assert.equal(viewer.credit, 0);
+    assert.equal(viewer.pool.principal, 0);
+    assert.equal(viewer.pool.share, 0);
+    assert.equal(viewer.pool.distributable, 95);
+  } finally { arena.close(); }
+});
+
+
+test('open-phase page and download use public pool rates, not personal stakes', () => {
+  let now = 100_000;
+  const arena = openArena(':memory:', { clock: () => now, durations: { betMs: 10_000, battleMs: 40_000 }, seed: 1 });
+  try {
+    const a = arena.login('Open A');
+    const b = arena.login('Open B');
+    const watch = arena.login('Open Watch');
+    const req = (acct, side) => ({ sessionId: acct.account.uid, roundNumber: 1, side, requestId: 'o', amount: 100 });
+    arena.bet(a.token, req(a, 'red'));
+    arena.bet(b.token, req(b, 'blue'));
+    // no tick past lock: still open. Every account, including a spectator, sees public pool rates.
+    for (const acct of [a, b, watch]) {
+      const round = arena.state(acct.token).session.round;
+      assert.deepEqual(round.poolView.rates, { red: 195, blue: 195 });
+      assert.equal(round.poolView.pending, false);
+      const download = arena.archive(acct.token, 1).archive.battle_data.round.rates;
+      assert.deepEqual(download, { red: 195, blue: 195 });
+    }
+    // personal stakes stay personal in the page view.
+    assert.deepEqual(arena.state(a.token).session.round.teams.red.player, 100);
+    assert.deepEqual(arena.state(watch.token).session.round.teams.red.player, 0);
+  } finally { arena.close(); }
+});

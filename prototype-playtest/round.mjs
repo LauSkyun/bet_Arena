@@ -12,9 +12,10 @@ const lockMs = 2_000;
 const resultMs = 5_000;
 const catchUpBatch = 32;
 
-export function newSession(id, now, reference = undefined, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold) {
+export function newSession(id, now, reference = undefined, seed = crypto.getRandomValues(new Uint32Array(1))[0], durations = defaultDurations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, settlementRules = undefined) {
   return { version: sessionVersion, id, seed, ...(reference === undefined ? {} : { reference }), nextDurations: durations, nextProfile: profile, nextThreshold: threshold, balance: betting.initialBalance,
-    round: newRound(1, now, seed, durations, board, profile, threshold, reference), previous: null };
+    ...(settlementRules === undefined ? {} : { settlementRules }),
+    round: newRound(1, now, seed, durations, board, profile, threshold, reference, settlementRules), previous: null };
 }
 
 function seedFor(seed, number, side) {
@@ -24,12 +25,13 @@ function seedFor(seed, number, side) {
   return (value ^ (value >>> 15)) >>> 0;
 }
 
-function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, reference) {
+function newRound(number, startedAt, seed, durations, board = currentBoard, profile = arenaProfile, threshold = betting.threshold, reference, settlementRules = undefined) {
   return {
     number,
     board,
     profile,
     threshold,
+    ...(settlementRules === undefined ? {} : { settlementRules }),
     reference: reference ?? defaultRoundReference(threshold),
     combatRules: profile === groundProfile ? groundSelfDestructRules : currentCombatRules,
     fireRevision: currentFireRevision,
@@ -69,7 +71,7 @@ export function advance(session, now, observe) {
 
     lastFinished = session.round;
     observe?.finished(lastFinished);
-    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold, session.reference) };
+    session = { ...session, round: newRound(sealed.number + 1, time.next, session.seed, session.nextDurations, currentBoard, session.nextProfile, session.nextThreshold, session.reference, session.settlementRules) };
   }
   if (!lastFinished) return session;
   const previous = { ...lastFinished.result, battleData: battleDataFor(lastFinished, session.reference) };

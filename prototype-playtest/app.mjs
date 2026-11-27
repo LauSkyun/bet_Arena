@@ -3,6 +3,7 @@ import { arenaProfile, profiles } from './profiles.mjs';
 import { groundAreaLabels } from './ground-area.mjs';
 import { battleDataFor, battleDataReport } from './battle-data.mjs';
 import { returnsFor } from './returns.mjs';
+import { playerPoolRules, poolPending, poolRatesFor } from './settlement-pool.mjs';
 import { battleRules, baseVictoryRules, groundHealingRules, groundAreaRules, groundSelfDestructRules, countGround, frameAt, openingGround } from './battle.mjs';
 import { findReceipt, isFull, referenceForRound, sides, stakesFor } from './betting.mjs';
 import { baseAttack, baseDefenseRules, barracksLimit, distance, boardColumns, boardRows, hasExpansion, isHex, keyAt, mapFor, openingOwner, unitStats } from './roster.mjs';
@@ -76,7 +77,8 @@ function receiptMessage(receipt) {
   return changes ? `${confirmed}${changes}。` : confirmed;
 }
 
-function renderTeam(side, team, phase, percent, layout, stepSize) {
+function renderTeam(side, team, phase, percent, layout, stepSize, rateLabel = '回报率') {
+  element(`${side}-rate-label`).textContent = rateLabel;
   element(`${side}-rate`).textContent = percent === null ? '—' : `${percent}%`;
   element(`${side}-own`).textContent = String(team.player);
   element(`${side}-total`).textContent = String(team.total);
@@ -333,8 +335,14 @@ function render(session, now) {
   renderBoard(round, teams, frame, latestEffects);
   const score = element('scores');
   score.textContent = showBattle && !frame ? '本轮战斗作废' : scoreLabel(frame?.scores ?? startingScores);
-  const rates = round.snapshot ? round.snapshot.rates : returnsFor(teams);
-  for (const side of sides) renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold);
+  const isPool = round.snapshot ? round.snapshot.settlementRules === playerPoolRules : round.settlementRules === playerPoolRules;
+  const rates = round.snapshot ? round.snapshot.rates : round.poolView ? round.poolView.rates : isPool ? poolRatesFor(teams) : returnsFor(teams);
+  const pending = isPool && (round.poolView ? round.poolView.pending : poolPending(teams));
+  const rateLabel = isPool ? '奖池回报（含本金）' : '回报率';
+  for (const side of sides) {
+    renderTeam(side, teams[side], stage.phase, rates[side], round.board, round.threshold, rateLabel);
+    if (pending) element(`${side}-rate`).textContent = '待成池／退款';
+  }
   const effects = element('latest-effects');
   effects.hidden = !latestEffects.length;
   if (latestEffects.length) {
@@ -352,8 +360,15 @@ function render(session, now) {
     element('result-ticket').textContent = stake ? `投入 · 红 ${stakes.red} 点 / 蓝 ${stakes.blue} 点` : '本轮观战';
     const winningPercent = settledRates[winner];
     const appliedRate = Boolean(stakes[winner]) && winningPercent != null;
-    element('result-rate').hidden = !appliedRate;
-    if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
+    const isPlayerPool = round.result.settlementRules === 2 && round.result.pool;
+    element('result-rate').hidden = !appliedRate && !isPlayerPool;
+    if (isPlayerPool) {
+      const pool = round.result.pool;
+      const detail = pool.refund > 0
+        ? `奖池 · 单边或无赛果，退回 ${pool.refund} 点；本金／分成为 0`
+        : `奖池 · 胜方 ${pool.winnerPool}／败方 ${pool.loserPool}，抽成 ${pool.rake}，分配 ${pool.distributable}；本人本金 ${pool.principal}＋分成 ${pool.share}`;
+      element('result-rate').textContent = detail;
+    } else if (appliedRate) element('result-rate').textContent = `${teamName[winner]}锁定回报率 ${winningPercent}%（含本金）`;
     element('result-net').textContent = `本轮净变化 ${signed(net)} 点`;
     const change = stake && (winner === 'void' || winner === 'draw') ? '退回投入' : '本次入账';
     element('result-credit').textContent = `${change} ${credit} 点 · 结算后余额 ${balanceAfter} 点`;
