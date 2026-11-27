@@ -9,3 +9,7 @@
 完整包内公共战斗可用 GM 按实录重播，个人投注、入账和历史只取当前账号。进行中导出截至服务当前拍。重开服务需使用同一 SQLite 文件，复测核旧余额与下载终帧一致。
 
 [同浏览器双标签复验](../../testing/runs/2026-11-25-shared-arena-tab-session-independent.md)
+
+## dev 多人下注模拟
+
+GM 保存的配置从下一轮生效。陪练投入进入公共奖池，赢款进入模拟账本；个人下载用来源和强化效果还原陪练投入。升级已开盘的旧轮时维持其原规则。跨轮恢复按计划时点交错处理陪练和系统投入。[模块需求](../../requirements/10-gm-multiplayer/requirement.md) · [独立验收](../../testing/runs/2026-11-27-gm-multiplayer-independent.md)

@@ -35,3 +35,7 @@
 - [里程碑 1 分析](analysis/milestone-1.md) · [第一次反馈](analysis/milestone-1-iteration-2026-11-23.md) · [第二次反馈](analysis/milestone-1-second-feedback-2026-11-23.md)
 - [战局复现数据](analysis/milestone-1-round-data-2026-11-23.md) · [基地判胜](analysis/milestone-1-base-victory-2026-11-23.md) · [兵种与棋盘](analysis/unit-roles-sc-board-2026-11-24.md)
 - [仅兵营出兵](runs/2026-11-24-barracks-only-independent.md) · [基地防守](runs/2026-11-24-base-defense-independent.md) · [建筑血条](runs/2026-11-24-building-health-independent.md) · [强化门槛](runs/2026-11-24-bet-threshold-independent.md)
+
+## GM 多人下注模拟
+
+[需求与复验结果](runs/2026-11-27-gm-multiplayer-independent.md) · [XMind 用例](cases/gm-multiplayer-2026-11-27.xmind)
