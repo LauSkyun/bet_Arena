@@ -38,4 +38,4 @@
 
 ## GM 多人下注模拟
 
-[需求与复验结果](runs/2026-11-27-gm-multiplayer-independent.md) · [XMind 用例](cases/gm-multiplayer-2026-11-27.xmind)
+[需求与复验结果](runs/2026-11-27-gm-multiplayer-independent.md) · [XMind 用例](cases/gm-multiplayer-2026-11-27.xmind) · [账号 GM 面板与直链登录复验](runs/2026-11-27-account-gm-independent.md)
