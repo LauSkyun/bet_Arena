@@ -13,3 +13,7 @@
 ## dev 多人下注模拟
 
 GM 保存的配置从下一轮生效。陪练投入进入公共奖池，赢款进入模拟账本；个人下载用来源和强化效果还原陪练投入。升级已开盘的旧轮时维持其原规则。跨轮恢复按计划时点交错处理陪练和系统投入。[模块需求](../../requirements/10-gm-multiplayer/requirement.md) · [独立验收](../../testing/runs/2026-11-27-gm-multiplayer-independent.md)
+
+## 账号 GM 设置
+
+试玩服务用 `ARENA_GM_USERS` 配置管理员账号。竞技场里的「GM 设置」沿用当前标签的账号。直接打开 `/gm/` 时，先在该标签登录，随后会返回面板。白名单账号可改下一轮的结算和陪练设置，普通账号看到只读摘要。设置从下一轮起对服务内所有玩家生效。[模块需求](../../requirements/11-gm-panel/requirement.md) · [独立复验](../../testing/runs/2026-11-27-account-gm-independent.md)

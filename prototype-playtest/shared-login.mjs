@@ -10,7 +10,8 @@ form.addEventListener('submit', async (event) => {
   notice.textContent = '';
   try {
     await signIn(username.value);
-    location.replace('/arena/');
+    const returnTo = new URLSearchParams(location.search).get('returnTo');
+    location.replace(returnTo === 'gm' ? '/gm/' : '/arena/');
   } catch (error) {
     notice.textContent = error.message;
     button.disabled = false;
