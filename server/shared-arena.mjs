@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { applyDueBots, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
+import { botPlan, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
 import { battleDataFor, battleDataReport } from '../prototype-playtest/battle-data.mjs';
 import { betting, confirmBet, maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
 import { winningCredit } from '../prototype-playtest/returns.mjs';
@@ -169,15 +169,12 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     }
   }
 
-  // 每轮封盘前按该轮配置处理到期的陪练计划；计划事件全部落库后再封盘，封盘后禁止补单。
-  function prepareRound(round, lock, now) {
-    const config = round.gmConfig ?? parse(load.get())?.gmConfig;
-    const state = { seed: parse(load.get())?.seed, round };
-    const { state: updated } = applyDueBots(state, config, Math.min(now, lock),
-      (no, requestId) => Boolean(hasBotBet.get(no, requestId)),
-      (no, requestId, side, amount, confirmedAt, receipt) =>
-        storeBotBet.run(no, requestId, side, amount, confirmedAt, JSON.stringify({ receipt })));
-    return updated.round;
+  // 陪练计划只取该轮冻结的 gmConfig：升级途中的当前轮没有轮内配置，按原状跑完，新配置只供下一轮。
+  function extraEvents(round) {
+    const config = round.gmConfig;
+    if (!config?.botEnabled || round.snapshot) return [];
+    const seed = parse(load.get())?.seed ?? 0;
+    return botPlan(round, config, seed).filter((p) => !hasBotBet.get(round.number, p.requestId));
   }
 
   function tick(now) {
@@ -186,7 +183,13 @@ export function openArena(path, { clock = Date.now, durations, seed, gmKey } = {
     const withReferenceEffects = (round) => observed.has(round.number)
       ? { ...round, referenceEffects: { ...round.referenceEffects, ...observed.get(round.number) } } : round;
     const moved = advance(current, now, {
-      prepareRound,
+      extraEvents,
+      observeExtra(round, planned) {
+        const confirmedAt = round.startedAt + planned.elapsedMs;
+        const receipt = { requestId: planned.requestId, side: planned.side, amount: planned.amount,
+          confirmedAt, effects: round.lastEffects ?? [] };
+        storeBotBet.run(round.number, planned.requestId, planned.side, planned.amount, confirmedAt, JSON.stringify({ receipt }));
+      },
       reference(round, _event, index) {
         if (!observed.has(round.number)) observed.set(round.number, {});
         observed.get(round.number)[index] = round.lastEffects;

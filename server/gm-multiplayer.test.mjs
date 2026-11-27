@@ -5,8 +5,9 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { timeline } from '../prototype-playtest/round.mjs';
-import { applyDueBots, botPlan, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
-import { maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
+import { botPlan, defaultGmConfig, validateGmConfig } from './gm-bots.mjs';
+import { advanceBetting, maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
+import { newRoster } from '../prototype-playtest/roster.mjs';
 import { openArena } from './shared-arena.mjs';
 
 const config = { settlementMode: 2, botEnabled: true, botCount: 3, minAmount: 100, maxAmount: 100 };
@@ -236,17 +237,81 @@ test('bot public entries carry no personal receipt', () => {
 
 
 test('bots obey the public total-investment gate (maxReferenceThreshold)', () => {
-  // Build a state whose team total is within one bot amount of the cap; the bot must be skipped.
-  const cfgBig = { settlementMode: 2, botEnabled: true, botCount: 1, minAmount: 100, maxAmount: 100 };
+  // A bot event whose amount would push the public total past the cap must be skipped.
   const round = {
-    number: 2, snapshot: null, startedAt: 0, durations: { betMs: 10_000 },
-    teams: { red: { total: maxReferenceThreshold - 50, player: 0, system: maxReferenceThreshold - 50, roster: {} },
-              blue: { total: 0, player: 0, system: 0, roster: {} } },
+    number: 2, snapshot: null, startedAt: 0, lockAt: 10_000, referenceIndex: 0,
+    threshold: 1_000_000, board: 'hex-14', profile: 'ground', combatRules: 12,
+    reference: [], receipts: [], settlementRules: 2,
+    teams: {
+      red: { total: maxReferenceThreshold - 50, player: 0, system: maxReferenceThreshold - 50, roster: newRoster('red', 1) },
+      blue: { total: 0, player: 0, system: 0, roster: newRoster('blue', 2) },
+    },
   };
   const stored = [];
-  const state = { seed: 42, round };
-  const { applied } = applyDueBots(state, cfgBig, 10_000, () => false,
-    (no, id, side, amount, at, receipt) => stored.push(id));
-  assert.equal(applied.length, 0, 'bot bet over the public total gate is skipped');
-  assert.equal(stored.length, 0);
+  const extra = [{ requestId: 'bot:2:0', side: 'red', amount: 100, elapsedMs: 1000 }];
+  const sealed = advanceBetting(round, [], 10_000, 10_000, undefined, extra,
+    (r, event) => stored.push(event.requestId));
+  assert.equal(stored.length, 0, 'bot bet over the public total gate is skipped');
+  assert.equal(sealed.teams.red.total, maxReferenceThreshold - 50, 'skipped bot did not invest');
+  // A within-cap bot does invest and fire observeExtra.
+  const extra2 = [{ requestId: 'bot:2:1', side: 'blue', amount: 50, elapsedMs: 1000 }];
+  advanceBetting(round, [], 10_000, 10_000, undefined, extra2, (r, event) => stored.push(event.requestId));
+  assert.deepEqual(stored, ['bot:2:1']);
+});
+
+
+test('mid-round upgrade: newly saved config does not apply bots to the current old round', (t) => {
+  // Use an arena with no gmConfig (as created by the develop baseline) and configure mid-round.
+  const dir = mkdtempSync(join(tmpdir(), 'gm-upgrade-'));
+  const file = join(dir, 'arena.sqlite');
+  const nowRef = { value: 100_000 };
+  const options = opts(nowRef);
+  const arena = openArena(file, options);
+  t.after(() => { arena.close(); rmSync(dir, { recursive: true, force: true }); });
+  const human = arena.login('Upgrade');
+  // Simulate a baseline DB: strip gmConfig from the stored state like develop did.
+  const db = new DatabaseSync(file);
+  const row = JSON.parse(db.prepare('SELECT data FROM arena WHERE id=1').get().data);
+  delete row.gmConfig;
+  delete row.round.gmConfig;
+  db.prepare('UPDATE arena SET data=? WHERE id=1').run(JSON.stringify(row));
+  db.close();
+  // Configure bots (reported as round 2 effective) while the current round is still open.
+  assert.equal(arena.configure('gm-secret', config).roundNumber, 2);
+  const round1 = arena.state(human.token).session.round;
+  // The current round was frozen before any gmConfig existed, so it has no bot config.
+  assert.equal(round1.gmConfig, undefined);
+  nowRef.value = round1.startedAt + 9_500;
+  const archive = arena.archive(human.token, 1).archive;
+  assert.equal(archive.bet_log.entries.filter((e) => e.source === 'bot').length, 0,
+    'current round without frozen config stays as-is');
+});
+
+test('per-event effect attribution is identical for continuous ticks and jump catch-up', () => {
+  function run(jump) {
+    const nowRef = { value: 100_000 };
+    const arena = openArena(':memory:', opts(nowRef));
+    try {
+      arena.configure('gm-secret', config);
+      const human = arena.login('Trace');
+      const first = arena.state(human.token).session.round;
+      nowRef.value = timeline(first).next + 1;
+      arena.tick();
+      const r2 = arena.state(human.token).session.round;
+      arena.bet(human.token, { sessionId: human.account.uid, roundNumber: 2, side: 'red', requestId: 'hr', amount: 81 });
+      arena.bet(human.token, { sessionId: human.account.uid, roundNumber: 2, side: 'blue', requestId: 'hb', amount: 93 });
+      if (jump) {
+        nowRef.value = r2.startedAt + 80_000;
+        arena.tick();
+      } else {
+        for (let t = r2.startedAt; t <= r2.startedAt + 80_000; t += 100) { nowRef.value = t; arena.tick(); }
+      }
+      const st = arena.state(human.token).session;
+      const arch = arena.archive(human.token, 2).archive;
+      const seq = arch.bet_log.entries.filter((e) => e.source === 'system' || e.source === 'bot')
+        .map((e) => [e.source, e.elapsedMs, (e.effects || []).map((x) => x.level).join(',')]);
+      return { seq, roster: JSON.stringify(st.round.snapshot?.battle) };
+    } finally { arena.close(); }
+  }
+  assert.deepEqual(run(true), run(false), 'continuous and catch-up must interleave events identically');
 });

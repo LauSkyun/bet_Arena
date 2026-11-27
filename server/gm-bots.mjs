@@ -1,7 +1,7 @@
 // dev GM 多人下注模拟的纯逻辑：配置校验、按轮确定性计划、到期事件应用。
 // 陪练走 confirmBet 同一套 invest/封盘路径，但不建账号、不扣真人余额、不落真人历史。
 
-import { confirmBet, maxReferenceThreshold } from '../prototype-playtest/betting.mjs';
+
 import { playerPoolRules } from '../prototype-playtest/settlement-pool.mjs';
 
 // settlementMode: 2 = 奖池规则（playerPoolRules），1 = 旧倍率；默认奖池，模拟默认关。
@@ -55,32 +55,4 @@ export function botPlan(round, config, sessionSeed) {
     plan.push({ requestId: `bot:${round.number}:${index}`, side, amount, elapsedMs, index });
   }
   return plan.sort((a, b) => a.elapsedMs - b.elapsedMs || a.index - b.index);
-}
-
-// 把到期的陪练计划按 confirmBet 应用到共享轮次。返回更新后的 state 与新落库的回执列表。
-// dueNow 由调用方封顶到锁定时刻：封盘前的到期事件全部处理，封盘后禁止补单。
-export function applyDueBots(state, config, dueNow, hasStored, store) {
-  if (!config?.botEnabled || state.round.snapshot) return { state, applied: [] };
-  const plan = botPlan(state.round, config, state.seed);
-  let updated = state;
-  const applied = [];
-  for (const planned of plan) {
-    const confirmedAt = state.round.startedAt + planned.elapsedMs;
-    if (confirmedAt > dueNow) continue;
-    if (hasStored(state.round.number, planned.requestId)) continue;
-    // 与真人在 arena.bet 的公共总投闸门一致：陪练也不能把本轮总投推过精确计算上限。
-    const total = updated.round.teams.red.total + updated.round.teams.blue.total;
-    if (planned.amount > maxReferenceThreshold - total) continue;
-    const synthetic = { ...updated, id: planned.requestId, balance: Number.MAX_SAFE_INTEGER, round: { ...updated.round } };
-    const result = confirmBet(synthetic, confirmedAt, {
-      sessionId: planned.requestId, roundNumber: state.round.number,
-      side: planned.side, amount: planned.amount, requestId: planned.requestId,
-    });
-    if (!result.receipt) continue;
-    store(state.round.number, planned.requestId, planned.side, planned.amount, confirmedAt, result.receipt);
-    applied.push({ ...planned, confirmedAt, receipt: result.receipt });
-    // 采用陪练带来的强化与总投，但共享轮次的 receipts 仍只放真人回执。
-    updated = { ...updated, round: { ...result.session.round, receipts: updated.round.receipts } };
-  }
-  return { state: updated, applied };
 }
