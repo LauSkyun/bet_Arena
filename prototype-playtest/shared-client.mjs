@@ -11,10 +11,10 @@ function signOut() {
   location.replace('/');
 }
 
-export async function arenaRequest(path, data, { allowMissing = false, signal } = {}) {
+export async function arenaRequest(path, data, { allowMissing = false, allowGuest = false, signal } = {}) {
   const login = path === 'login';
   const token = login ? null : sessionStorage.getItem(sessionKey);
-  if (!login && !token) {
+  if (!login && !token && !allowGuest) {
     signOut();
     throw new Error('请重新进入试玩。');
   }
@@ -65,6 +65,9 @@ export function mountAccountNav() {
   const history = document.createElement('a');
   history.href = '/history/';
   history.textContent = '我的历史';
+  const gm = document.createElement('a');
+  gm.href = '/gm/';
+  gm.textContent = 'GM 设置';
   const logout = document.createElement('button');
   logout.className = 'secondary';
   logout.textContent = '退出';
@@ -79,7 +82,7 @@ export function mountAccountNav() {
       logout.disabled = false;
     }
   });
-  nav.append(history, logout);
+  nav.append(history, gm, logout);
   header.append(nav);
   return ({ name }) => { accountName.textContent = `账号试玩 · ${name}`; };
 }

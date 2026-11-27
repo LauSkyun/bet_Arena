@@ -82,3 +82,46 @@ test('HTTP concurrent clients share a round and credits while account details re
   assert.equal((await get('/api/state', b.token)).status, 200);
   assert.equal((await fetch(`${base}/api/state`, { headers: { cookie: `arena44_session=${a.token}` } })).status, 401);
 });
+
+
+test('HTTP GM panel uses the tab session identity, not a key header', async (t) => {
+  const arena = openArena(':memory:', { clock: () => 100_000,
+    durations: { betMs: 10_000, battleMs: 40_000 }, seed: 42,
+    gmUsers: ['gm 管理'] });
+  const server = createArenaServer({ arena }).listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => { await new Promise((resolve) => server.close(resolve)); arena.close(); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const auth = (token) => token ? { authorization: `Bearer ${token}` } : {};
+  const get = (path, token, extra = {}) => fetch(`${base}${path}`, { headers: { ...auth(token), ...extra } });
+  const post = (path, value, token, extra = {}) => fetch(`${base}${path}`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...auth(token), ...extra }, body: JSON.stringify(value),
+  });
+  const login = async (username) => (await (await post('/api/login', { username })).json()).token;
+  const value = { settlementMode: 2, botEnabled: true, botCount: 4, minAmount: 20, maxAmount: 150 };
+
+  // GM page and its module are served
+  assert.equal((await get('/gm/')).status, 200);
+  assert.equal((await get('/gm/shared-gm.mjs')).status, 200);
+  // guest: no token -> signedIn false, allowed false (no redirect on the API)
+  const guest = await (await get('/api/gm/config')).json();
+  assert.equal(guest.signedIn, false);
+  assert.equal(guest.allowed, false);
+
+  const gm = await login('gm 管理');
+  const normal = await login('普通人');
+  assert.equal((await (await get('/api/gm/config', gm)).json()).allowed, true);
+  assert.equal((await (await get('/api/gm/config', normal)).json()).allowed, false);
+
+  // legacy key header no longer grants write access
+  const keyOnly = await post('/api/gm/config', value, null, { 'x-gm-key': 'legacy-key' });
+  assert.equal(keyOnly.status, 403);
+  // normal account direct submit is denied
+  const denied = await post('/api/gm/config', value, normal);
+  assert.equal(denied.status, 403);
+  // GM account can write
+  const ok = await post('/api/gm/config', value, gm);
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).roundNumber, 2);
+  assert.deepEqual((await (await get('/api/gm/config', normal)).json()).gmConfig, value);
+});
