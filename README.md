@@ -2,13 +2,13 @@
 
 ## V2.1 地面试玩
 
-develop 当前整合 19 种地面兵、对应技能、完整战局包和 GM 导入重播，待 #game研讨会:#48 整局体验确认。将以下启动命令用于当前检出即可试玩。工作机统一入口为 <http://localhost:8766/arena-v21/>。
+匿名地面整局已通过 #game研讨会:#48 体验，固定版本为 [`v2.1.0`](https://github.com/LauSkyun/bet_Arena/tree/v2.1.0)。包含 19 种地面兵、完整战局包和 GM 导入重播。工作脑的匿名试玩入口为 <http://localhost:8766/arena-v21/>。
 
 [项目指引](AGENTS.md) · [当前玩法](requirements/overview.md#5-v21-地面版与验收入口) · [测试档案](testing/README.md) · [功能知识](knowledge/README.md)
 
 ## 同局多人内测
 
-账号版用 Node 24 LTS 在当前仓库根目录启动 server/http.mjs，默认 [本机多人试玩](http://localhost:8780/)。规范化同名可续接余额与历史。[启动说明](requirements/08-shared-arena/implementation.md) · [测试档案](testing/README.md#同局多人内测)
+[`v2.1.1`](https://github.com/LauSkyun/bet_Arena/tree/v2.1.1) 在地面版基础上发布同局多人、账号历史、奖池和白名单账号 GM 设置。在该版本根目录用 Node.js 24 运行 `node server/http.mjs`，默认入口 <http://localhost:8780/>。输入同一试玩用户名可续接余额与历史。[启动说明](requirements/08-shared-arena/implementation.md) · [整合版测试档案](testing/README.md#v211-多人奖池整合版)
 
 ## 已发布的 V1.1.0
 
@@ -23,7 +23,7 @@ develop 当前整合 19 种地面兵、对应技能、完整战局包和 GM 导�
 
 ## 本机启动
 
-下载并解压本版本，或用下面的命令获取固定版本。
+以下静态启动命令以历史标签 `v1.1.0` 为例。按已发布地面版复现时，将克隆标签换成 `v2.1.0`。
 
 ```sh
 git clone --branch v1.1.0 --depth 1 https://github.com/LauSkyun/bet_Arena.git
@@ -40,7 +40,7 @@ python3 -m http.server 8766 --bind 127.0.0.1 --directory prototype-playtest
 
 ## 核验与回退
 
-- **运行自动回归。** 在仓库根目录运行 `node --test "prototype-playtest/*.test.mjs"`，使用 Node.js 24。V1.1.0 包含 64 项用例。
+- **运行自动回归。** 在 `v2.1.1` 根目录用 Node.js 24 运行 `node --test "prototype-playtest/*.test.mjs" "server/*.test.mjs"`。历史静态版只需要运行 `prototype-playtest` 下的测试。
 - **重演导出战局。** 从页面导出 JSON 后运行 `node testing/replay-battle-data.mjs round.json 5000`，查看封盘阵容推演的赛果及第 5 秒棋盘。
 - **重新取得 V1。** 下载 `v1.1.0` 标签的源码或重新克隆到单独目录。需要还原固定 10 点的版本时，将克隆命令的标签换成 `v1.0.0`。
 
